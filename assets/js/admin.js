@@ -6,9 +6,22 @@
 
 async function openAdminPanel() {
     openModal('adminModal');
-    loadAdminUsers();
-    loadAuditLog();
-    loadReportsTable();
+    // Default tab is 'pending' — load it first
+    if (typeof loadPendingReports === 'function') {
+        loadPendingReports();
+    }
+    // Also quietly load badge count
+    updatePendingBadge();
+}
+
+async function updatePendingBadge() {
+    try {
+        const res = await fetch('api/public/report.php?status=pending&limit=1');
+        const d   = await res.json();
+        const cnt = d?.data?.total ?? 0;
+        const el  = document.getElementById('pendingBadge');
+        if (el) el.textContent = cnt > 0 ? cnt : '';
+    } catch { /* ignore */ }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,11 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (key === 'audit')   loadAuditLog();
             if (key === 'reports') loadReportsTable();
             if (key === 'users')   loadAdminUsers();
+            // 'pending' tab handled by public-reports.js listener
         });
     });
 
     const us = document.getElementById('userSearch');
     if (us) us.addEventListener('input', debounce(() => loadAdminUsers(us.value), 350));
+
+    // Periodically refresh pending badge every 2 minutes
+    setInterval(updatePendingBadge, 120_000);
 });
 
 async function loadAdminUsers(q = '') {

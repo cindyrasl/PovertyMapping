@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// api/stats/index.php — Dashboard Statistics
+// api/stats/index.php — Dashboard Statistics (no auth)
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
@@ -11,11 +11,15 @@ $action = $_GET['action'] ?? 'overview';
 switch ($action) {
 
     case 'overview': {
-        $centers    = (int)$pdo->query("SELECT COUNT(*) FROM religious_centers WHERE is_active=1")->fetchColumn();
-        $households = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1")->fetchColumn();
-        $population = (int)$pdo->query("SELECT COALESCE(SUM(dependents),0) FROM households WHERE is_active=1")->fetchColumn();
-        $aidReceived= (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1 AND aid_status='received'")->fetchColumn();
-        $notYet     = $households - $aidReceived;
+        $centers     = (int)$pdo->query("SELECT COUNT(*) FROM religious_centers WHERE is_active=1")->fetchColumn();
+        $households  = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1")->fetchColumn();
+        $population  = (int)$pdo->query("SELECT COALESCE(SUM(dependents),0) FROM households WHERE is_active=1")->fetchColumn();
+        $aidReceived = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1 AND aid_status='received'")->fetchColumn();
+        $openReports = (int)$pdo->query("SELECT COUNT(*) FROM emergency_reports WHERE status IN ('open','in_progress')")->fetchColumn();
+        $pendingPublic = 0;
+        try {
+            $pendingPublic = (int)$pdo->query("SELECT COUNT(*) FROM public_reports WHERE status='pending'")->fetchColumn();
+        } catch (\Throwable) {}
 
         $povertyBreakdown = $pdo->query("
             SELECT poverty_status, COUNT(*) AS cnt
@@ -29,28 +33,26 @@ switch ($action) {
             GROUP BY house_condition
         ")->fetchAll(\PDO::FETCH_KEY_PAIR);
 
-        $openReports = (int)$pdo->query("SELECT COUNT(*) FROM emergency_reports WHERE status IN ('open','in_progress')")->fetchColumn();
-        $unverified = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1 AND verified_at IS NULL")->fetchColumn();
-
         Response::success([
-            'centers'          => $centers,
-            'households'       => $households,
-            'population'       => $population,
-            'aid_received'     => $aidReceived,
-            'aid_not_yet'      => $notYet,
-            'open_reports'     => $openReports,
-            'unverified'       => $unverified,
-            'poverty_breakdown'=> [
+            'centers'           => $centers,
+            'households'        => $households,
+            'population'        => $population,
+            'aid_received'      => $aidReceived,
+            'aid_not_yet'       => $households - $aidReceived,
+            'open_reports'      => $openReports,
+            'pending_public'    => $pendingPublic,
+            'poverty_breakdown' => [
                 'sangat_miskin' => (int)($povertyBreakdown['sangat_miskin'] ?? 0),
                 'miskin'        => (int)($povertyBreakdown['miskin']        ?? 0),
-                'hampir_miskin' => (int)($povertyBreakdown['hampir_miskin'] ?? 0),
-                'tidak_miskin'  => (int)($povertyBreakdown['tidak_miskin']  ?? 0),
+                'rentan_miskin' => (int)($povertyBreakdown['rentan_miskin'] ?? 0),
+                'terdata'       => (int)($povertyBreakdown['terdata']       ?? 0),
             ],
             'condition_breakdown' => [
-                'layak'      => (int)($conditionBreakdown['layak']      ?? 0),
-                'tidak_layak'=> (int)($conditionBreakdown['tidak_layak']?? 0),
+                'layak'       => (int)($conditionBreakdown['layak']       ?? 0),
+                'tidak_layak' => (int)($conditionBreakdown['tidak_layak'] ?? 0),
             ],
         ]);
+        break;
     }
 
     case 'trend': {
@@ -58,166 +60,103 @@ switch ($action) {
             SELECT
                 DATE_FORMAT(created_at,'%Y-%m') AS month,
                 COUNT(*) AS new_households,
-                SUM(CASE WHEN aid_status='received' THEN 1 ELSE 0 END) AS aided,
-                AVG(poverty_score) AS avg_score
+                SUM(CASE WHEN aid_status='received' THEN 1 ELSE 0 END) AS aided
             FROM households
-            WHERE is_active=1
-              AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-            GROUP BY month
-            ORDER BY month
+            WHERE is_active=1 AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY month ORDER BY month
         ")->fetchAll();
 
         foreach ($rows as &$r) {
             $r['new_households'] = (int)$r['new_households'];
             $r['aided']          = (int)$r['aided'];
-            $r['avg_score']      = round((float)$r['avg_score'], 1);
         }
         unset($r);
 
         Response::success(['trend' => $rows]);
+        break;
     }
 
     case 'poverty_chart': {
         $breakdown = $pdo->query("
-            SELECT poverty_status,
-                   COUNT(*) AS count,
-                   ROUND(AVG(poverty_score),1) AS avg_score,
-                   ROUND(AVG(income),0) AS avg_income
+            SELECT poverty_status, COUNT(*) AS count
             FROM households WHERE is_active=1
             GROUP BY poverty_status
-            ORDER BY FIELD(poverty_status,'sangat_miskin','miskin','hampir_miskin','tidak_miskin')
+            ORDER BY FIELD(poverty_status,'sangat_miskin','miskin','rentan_miskin','terdata')
         ")->fetchAll();
 
-        $buckets = $pdo->query("
-            SELECT FLOOR(poverty_score/10)*10 AS bucket, COUNT(*) AS cnt
-            FROM households WHERE is_active=1
-            GROUP BY bucket ORDER BY bucket
-        ")->fetchAll();
-
-        Response::success(['breakdown' => $breakdown, 'score_buckets' => $buckets]);
+        Response::success(['breakdown' => $breakdown]);
+        break;
     }
 
     case 'aid_chart': {
-    // Monthly aid distribution (last 12 months)
-        $monthly = $pdo->query("
-            SELECT 
-                DATE_FORMAT(aid_date, '%Y-%m') AS month,
-                aid_type,
-                COUNT(*) AS cnt,
-                COALESCE(SUM(amount), 0) AS total_amount
-            FROM aid_history
-            WHERE aid_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-            GROUP BY month, aid_type
-            ORDER BY month ASC, aid_type
-        ")->fetchAll();
-
-        // Aid by type (all time)
         $byType = $pdo->query("
-            SELECT 
-                aid_type, 
-                COUNT(*) AS cnt,
-                COALESCE(SUM(amount), 0) AS total_amount
-            FROM aid_history 
-            GROUP BY aid_type 
-            ORDER BY cnt DESC
+            SELECT aid_type, COUNT(*) AS cnt
+            FROM aid_history GROUP BY aid_type ORDER BY cnt DESC
         ")->fetchAll();
 
-        // Total distributions
-        $totalDistributions = (int)$pdo->query("SELECT COUNT(*) FROM aid_history")->fetchColumn();
-        $totalAmount = (int)$pdo->query("SELECT COALESCE(SUM(amount), 0) FROM aid_history")->fetchColumn();
-        $householdsAided = (int)$pdo->query("SELECT COUNT(DISTINCT household_id) FROM aid_history")->fetchColumn();
+        $monthly = $pdo->query("
+            SELECT DATE_FORMAT(aid_date,'%Y-%m') AS month,
+                   aid_type, COUNT(*) AS cnt
+            FROM aid_history
+            WHERE aid_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+            GROUP BY month, aid_type ORDER BY month, aid_type
+        ")->fetchAll();
+
+        $total = (int)$pdo->query("SELECT COUNT(*) FROM aid_history")->fetchColumn();
 
         Response::success([
             'monthly' => $monthly,
             'by_type' => $byType,
-            'summary' => [
-                'total_distributions' => $totalDistributions,
-                'total_amount' => $totalAmount,
-                'households_aided' => $householdsAided,
-            ],
+            'summary' => ['total_distributions' => $total],
         ]);
         break;
     }
 
     case 'age_distribution': {
-        // Age distribution of DEPENDENTS only (not KK)
-        // Parse dependents_data JSON and count ages
-        $allDependents = $pdo->query("
-            SELECT dependents_data 
-            FROM households 
-            WHERE is_active = 1 AND dependents_data IS NOT NULL
-        ")->fetchAll();
-        
-        $ageGroups = [
-            'anak' => 0,    // <12
-            'remaja' => 0,  // 12-17
-            'pemuda' => 0,  // 18-30
-            'dewasa' => 0,  // 31-59
-            'lansia' => 0,  // 60+
-        ];
-        
-        foreach ($allDependents as $row) {
-            $deps = json_decode($row['dependents_data'], true);
-            if (!is_array($deps)) continue;
-            
-            foreach ($deps as $dep) {
-                if (empty($dep['date_of_birth'])) continue;
-                
-                $dob = new DateTime($dep['date_of_birth']);
-                $now = new DateTime();
-                $age = $dob->diff($now)->y;
-                
-                if ($age < 12) {
-                    $ageGroups['anak']++;
-                } elseif ($age < 18) {
-                    $ageGroups['remaja']++;
-                } elseif ($age < 31) {
-                    $ageGroups['pemuda']++;
-                } elseif ($age < 60) {
-                    $ageGroups['dewasa']++;
-                } else {
-                    $ageGroups['lansia']++;
-                }
-            }
-        }
-        
-        Response::success(['age_distribution' => $ageGroups]);
+        $row = $pdo->query("
+            SELECT
+                SUM(CASE WHEN TIMESTAMPDIFF(YEAR,date_of_birth,CURDATE()) < 12              THEN 1 ELSE 0 END) AS anak,
+                SUM(CASE WHEN TIMESTAMPDIFF(YEAR,date_of_birth,CURDATE()) BETWEEN 12 AND 17 THEN 1 ELSE 0 END) AS remaja,
+                SUM(CASE WHEN TIMESTAMPDIFF(YEAR,date_of_birth,CURDATE()) BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS pemuda,
+                SUM(CASE WHEN TIMESTAMPDIFF(YEAR,date_of_birth,CURDATE()) BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS dewasa,
+                SUM(CASE WHEN TIMESTAMPDIFF(YEAR,date_of_birth,CURDATE()) >= 60              THEN 1 ELSE 0 END) AS lansia,
+                SUM(CASE WHEN date_of_birth IS NULL THEN 1 ELSE 0 END)                                         AS unknown
+            FROM households WHERE is_active=1
+        ")->fetch();
+
+        foreach ($row as &$v) { $v = (int)$v; }
+        Response::success(['age_distribution' => $row]);
         break;
     }
 
-    case 'education': {
+    case 'center_stats': {
         $rows = $pdo->query("
-            SELECT education, COUNT(*) AS cnt
-            FROM households WHERE is_active=1
-            GROUP BY education
-            ORDER BY FIELD(education,'pascasarjana','sarjana','diploma','sma','smp','sd','tidak_sekolah')
-        ")->fetchAll();
-        Response::success(['education' => $rows]);
-    }
-
-    case 'emergency_summary': {
-        $bySeverity = $pdo->query("
-            SELECT severity, status, COUNT(*) AS cnt
-            FROM emergency_reports
-            GROUP BY severity, status
-        ")->fetchAll();
-
-        $byType = $pdo->query("
-            SELECT type, COUNT(*) AS cnt FROM emergency_reports GROUP BY type ORDER BY cnt DESC
+            SELECT rc.id, rc.name, rc.worship_type, rc.radius,
+                COUNT(h.id)                                          AS total_households,
+                SUM(h.aid_status='received')                         AS aided,
+                SUM(h.poverty_status='sangat_miskin')                AS sangat_miskin,
+                SUM(h.poverty_status='miskin')                       AS miskin,
+                SUM(h.poverty_status='rentan_miskin')                AS rentan_miskin,
+                SUM(h.house_condition='tidak_layak')                 AS tidak_layak
+            FROM religious_centers rc
+            LEFT JOIN households h ON h.managing_center_id = rc.id AND h.is_active=1
+            WHERE rc.is_active=1
+            GROUP BY rc.id
+            ORDER BY total_households DESC
         ")->fetchAll();
 
-        $monthly = $pdo->query("
-            SELECT DATE_FORMAT(created_at,'%Y-%m') AS month, COUNT(*) AS cnt
-            FROM emergency_reports
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY month ORDER BY month
-        ")->fetchAll();
+        foreach ($rows as &$r) {
+            $r['total_households'] = (int)$r['total_households'];
+            $r['aided']            = (int)$r['aided'];
+            $r['sangat_miskin']    = (int)$r['sangat_miskin'];
+            $r['miskin']           = (int)$r['miskin'];
+            $r['rentan_miskin']    = (int)$r['rentan_miskin'];
+            $r['tidak_layak']      = (int)$r['tidak_layak'];
+        }
+        unset($r);
 
-        Response::success([
-            'by_severity' => $bySeverity,
-            'by_type'     => $byType,
-            'monthly'     => $monthly,
-        ]);
+        Response::success(['centers' => $rows]);
+        break;
     }
 
     default:

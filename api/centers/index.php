@@ -1,7 +1,6 @@
 <?php
 // ============================================================
-// api/centers/index.php — Religious Centers CRUD
-// Single-admin version (no users table)
+// api/centers/index.php — Religious Centers CRUD (no auth)
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
@@ -39,7 +38,8 @@ switch ("$method:$action") {
                 (SELECT COUNT(*) FROM households h
                     WHERE h.managing_center_id = rc.id AND h.is_active=1) AS household_count,
                 (SELECT COUNT(*) FROM households h
-                    WHERE h.managing_center_id = rc.id AND h.is_active=1 AND h.aid_status='not_yet') AS pending_aid_count
+                    WHERE h.managing_center_id = rc.id AND h.is_active=1
+                    AND h.aid_status='not_yet') AS pending_aid_count
             FROM religious_centers rc
             WHERE $whereSQL
             ORDER BY rc.name
@@ -48,26 +48,23 @@ switch ("$method:$action") {
         $rows = $stmt->fetchAll();
 
         foreach ($rows as &$r) {
-            $r['latitude']         = (float)$r['latitude'];
-            $r['longitude']        = (float)$r['longitude'];
-            $r['radius']           = (int)$r['radius'];
-            $r['household_count']  = (int)$r['household_count'];
+            $r['latitude']          = (float)$r['latitude'];
+            $r['longitude']         = (float)$r['longitude'];
+            $r['radius']            = (int)$r['radius'];
+            $r['household_count']   = (int)$r['household_count'];
             $r['pending_aid_count'] = (int)$r['pending_aid_count'];
         }
         unset($r);
 
         Response::success(['centers' => $rows, 'total' => count($rows)]);
+        break;
     }
 
     case 'GET:show': {
         if (!$id) Response::error('ID is required.', 400);
 
         $pdo  = Database::get();
-        $stmt = $pdo->prepare("
-            SELECT rc.*
-            FROM religious_centers rc
-            WHERE rc.id = ? AND rc.is_active = 1
-        ");
+        $stmt = $pdo->prepare("SELECT rc.* FROM religious_centers rc WHERE rc.id = ? AND rc.is_active = 1");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         if (!$row) Response::notFound('Religious center not found.');
@@ -77,6 +74,7 @@ switch ("$method:$action") {
         $row['radius']    = (int)$row['radius'];
 
         Response::success($row);
+        break;
     }
 
     case 'GET:nearby': {
@@ -97,8 +95,7 @@ switch ("$method:$action") {
             FROM religious_centers rc
             WHERE rc.is_active = 1
             HAVING distance_km <= ?
-            ORDER BY distance_km
-            LIMIT 10
+            ORDER BY distance_km LIMIT 10
         ");
         $stmt->execute([$lat, $lng, $lat, $km]);
         $rows = $stmt->fetchAll();
@@ -111,12 +108,13 @@ switch ("$method:$action") {
         unset($r);
 
         Response::success(['centers' => $rows]);
+        break;
     }
 
     case 'GET:coverage': {
         if (!$id) Response::error('ID is required.', 400);
 
-        $pdo  = Database::get();
+        $pdo    = Database::get();
         $center = $pdo->prepare('SELECT * FROM religious_centers WHERE id=? AND is_active=1');
         $center->execute([$id]);
         $c = $center->fetch();
@@ -124,7 +122,7 @@ switch ("$method:$action") {
 
         $stmt = $pdo->prepare("
             SELECT h.id, h.head_name, h.latitude, h.longitude,
-                   h.poverty_status, h.poverty_score, h.aid_status, h.dependents,
+                   h.poverty_status, h.aid_status, h.dependents,
                    (6371000 * ACOS(
                        COS(RADIANS(?)) * COS(RADIANS(h.latitude)) *
                        COS(RADIANS(h.longitude) - RADIANS(?)) +
@@ -146,11 +144,8 @@ switch ("$method:$action") {
         }
         unset($h);
 
-        Response::success([
-            'center'     => $c,
-            'households' => $households,
-            'count'      => count($households),
-        ]);
+        Response::success(['center' => $c, 'households' => $households, 'count' => count($households)]);
+        break;
     }
 
     case 'POST:create': {
@@ -186,7 +181,8 @@ switch ("$method:$action") {
 
         $newId = (int)$pdo->lastInsertId();
         AuditLog::record('Tambah Tempat Ibadah', 'religious_centers', $newId, null, $data);
-        Response::created(['id' => $newId], 'Religious center created.');
+        Response::created(['id' => $newId], 'Tempat ibadah berhasil ditambahkan.');
+        break;
     }
 
     case 'POST:update': {
@@ -209,13 +205,12 @@ switch ("$method:$action") {
         $oldRow = $old->fetch();
         if (!$oldRow) Response::notFound('Religious center not found.');
 
-        $stmt = $pdo->prepare("
+        $pdo->prepare("
             UPDATE religious_centers SET
                 name=?, worship_type=?, address=?, latitude=?, longitude=?, radius=?,
                 contact_person=?, contact_phone=?, notes=?
             WHERE id=?
-        ");
-        $stmt->execute([
+        ")->execute([
             Validator::sanitizeString($data['name']),
             $data['worship_type'],
             Validator::sanitizeString($data['address']),
@@ -229,7 +224,8 @@ switch ("$method:$action") {
         ]);
 
         AuditLog::record('Update Tempat Ibadah', 'religious_centers', $id, $oldRow, $data);
-        Response::success(['id' => $id], 'Religious center updated.');
+        Response::success(['id' => $id], 'Tempat ibadah diperbarui.');
+        break;
     }
 
     case 'POST:patch': {
@@ -242,33 +238,25 @@ switch ("$method:$action") {
         if (isset($data['radius'])) {
             $v = Validator::make($data, ['radius' => 'required|integer|min:50|max:5000']);
             $v->validate_or_fail();
-            $fields[] = 'radius = ?';
-            $params[] = (int)$data['radius'];
+            $fields[] = 'radius = ?'; $params[] = (int)$data['radius'];
         }
         if (isset($data['latitude'], $data['longitude'])) {
-            $v = Validator::make($data, [
-                'latitude' => 'required|latitude', 
-                'longitude' => 'required|longitude'
-            ]);
+            $v = Validator::make($data, ['latitude'=>'required|latitude','longitude'=>'required|longitude']);
             $v->validate_or_fail();
             $fields[] = 'latitude = ?';  $params[] = (float)$data['latitude'];
             $fields[] = 'longitude = ?'; $params[] = (float)$data['longitude'];
-            if (!empty($data['address'])) { 
-                $fields[] = 'address = ?'; 
-                $params[] = Validator::sanitizeString($data['address']); 
-            }
+            if (!empty($data['address'])) { $fields[] = 'address = ?'; $params[] = Validator::sanitizeString($data['address']); }
         }
-
         if (empty($fields)) Response::error('No patchable fields provided.', 400);
 
         $params[] = $id;
-
-        $pdo = Database::get();
-        $pdo->prepare('UPDATE religious_centers SET ' . implode(', ', $fields) . ' WHERE id = ? AND is_active=1')
+        Database::get()
+            ->prepare('UPDATE religious_centers SET ' . implode(', ', $fields) . ' WHERE id=? AND is_active=1')
             ->execute($params);
 
-        AuditLog::record('Update Radius/Posisi', 'religious_centers', $id, null, $data);
+        AuditLog::record('Geser/Resize Tempat Ibadah', 'religious_centers', $id, null, $data);
         Response::success(null, 'Center patched.');
+        break;
     }
 
     case 'POST:delete': {
@@ -279,9 +267,9 @@ switch ("$method:$action") {
         $stmt->execute([$id]);
 
         if ($stmt->rowCount() === 0) Response::notFound('Religious center not found.');
-
         AuditLog::record('Hapus Tempat Ibadah', 'religious_centers', $id);
-        Response::success(null, 'Religious center deleted.');
+        Response::success(null, 'Tempat ibadah dihapus.');
+        break;
     }
 
     default:

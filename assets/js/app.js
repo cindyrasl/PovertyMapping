@@ -198,3 +198,6 @@ document.addEventListener('keydown', (e) => {
         loadAllData().then(() => showToast('Data diperbarui.', 'success'));
     }
 });
+// ---- Export loadAllData for public-reports.js to call -----
+window.loadAllData = loadAllData;
+window.loadStats   = loadStats;

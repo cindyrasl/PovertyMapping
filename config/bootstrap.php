@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// config/bootstrap.php  — Single-admin simplified version
+// config/bootstrap.php — No-auth simplified version
 // ============================================================
 declare(strict_types=1);
 
@@ -20,29 +20,25 @@ if (APP_DEBUG) {
     ini_set('display_errors', '0');
 }
 
-// ---- Global exception handler ------------------------------
 set_exception_handler(function (Throwable $e) {
     $message = APP_DEBUG ? $e->getMessage() : 'Internal server error';
-    $code = $e->getCode() ?: 500;
-    Response::error($message, $code);
+    Response::error($message, 500);
 });
 
-// ---- CORS & Headers ---------------------------------------
+// ---- CORS & Security Headers ------------------------------
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 
 if (APP_ENV === 'development') {
     header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
 }
 
-// Preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-// ---- Output buffering (prevents accidental output) --------
 ob_start();

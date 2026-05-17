@@ -499,7 +499,7 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
     document.getElementById('addAidBtn').style.display = '';
 
     // Load dependents
-    currentDependents = h.dependents_data || [];
+    currentDependents = h.household_members || [];
     generateDependentFieldsFromData(currentDependents);
 
     recalcPoverty();
@@ -685,7 +685,7 @@ document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
         longitude:      lng,
         description:    document.getElementById('houseDescription').value.trim(),
         aid_status:     document.getElementById('houseAidStatus').value,
-        dependents_data: dependentsData,
+        household_members: dependentsData,
     };
 
     console.log('Sending payload:', JSON.stringify(body, null, 2)); // Debug log

@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// api/aid/index.php — Aid History CRUD
+// api/aid/index.php — Aid History (no auth)
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
@@ -13,7 +13,7 @@ switch ("$method:$action") {
 
     case 'GET:list':
     case 'GET:': {
-        $pdo  = Database::get();
+        $pdo    = Database::get();
         $where  = ['1=1'];
         $params = [];
 
@@ -38,12 +38,11 @@ switch ("$method:$action") {
             LIMIT $limit OFFSET $offset
         ");
         $stmt->execute($params);
-        $rows = $stmt->fetchAll();
 
         $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM aid_history ah WHERE $whereSQL");
         $cntStmt->execute($params);
 
-        Response::success(['aid_history' => $rows, 'total' => (int)$cntStmt->fetchColumn()]);
+        Response::success(['aid_history' => $stmt->fetchAll(), 'total' => (int)$cntStmt->fetchColumn()]);
         break;
     }
 
@@ -52,16 +51,15 @@ switch ("$method:$action") {
 
         $pdo  = Database::get();
         $stmt = $pdo->prepare("
-            SELECT ah.*, h.head_name, h.address, rc.name AS center_name
+            SELECT ah.*, h.head_name, rc.name AS center_name
             FROM aid_history ah
-            LEFT JOIN households h ON h.id = ah.household_id
+            LEFT JOIN households h         ON h.id  = ah.household_id
             LEFT JOIN religious_centers rc ON rc.id = ah.center_id
             WHERE ah.id = ?
         ");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         if (!$row) Response::notFound('Aid record not found.');
-
         Response::success($row);
         break;
     }
@@ -77,7 +75,7 @@ switch ("$method:$action") {
         $v->validate_or_fail();
 
         $pdo = Database::get();
-        $hh = $pdo->prepare('SELECT id FROM households WHERE id=? AND is_active=1');
+        $hh  = $pdo->prepare('SELECT id FROM households WHERE id=? AND is_active=1');
         $hh->execute([(int)$data['household_id']]);
         if (!$hh->fetch()) Response::notFound('Household not found.');
 
@@ -93,13 +91,14 @@ switch ("$method:$action") {
             !empty($data['amount']) ? (int)$data['amount'] : null,
             !empty($data['notes'])  ? Validator::sanitizeString($data['notes']) : null,
         ]);
+
         $newId = (int)$pdo->lastInsertId();
 
-        // Update household aid_status
+        // Flip aid_status
         $pdo->prepare("UPDATE households SET aid_status='received' WHERE id=?")
             ->execute([(int)$data['household_id']]);
 
-        AuditLog::record('Tambah Bantuan', 'aid_history', $newId, null, $data);
+        AuditLog::record('Catat Bantuan', 'aid_history', $newId, null, $data);
         Response::created(['id' => $newId], 'Bantuan berhasil dicatat.');
         break;
     }
@@ -118,25 +117,21 @@ switch ("$method:$action") {
         $pdo = Database::get();
         $old = $pdo->prepare('SELECT * FROM aid_history WHERE id=?');
         $old->execute([$id]);
-        $oldRow = $old->fetch();
-        if (!$oldRow) Response::notFound('Aid record not found.');
+        $row = $old->fetch();
+        if (!$row) Response::notFound('Aid record not found.');
 
-        $stmt = $pdo->prepare("
-            UPDATE aid_history SET
-                aid_type=?, aid_date=?, amount=?, notes=?, center_id=?
-            WHERE id=?
-        ");
-        $stmt->execute([
-            $data['aid_type'],
-            $data['aid_date'],
-            !empty($data['amount']) ? (int)$data['amount'] : null,
-            !empty($data['notes'])  ? Validator::sanitizeString($data['notes']) : null,
-            !empty($data['center_id']) ? (int)$data['center_id'] : null,
-            $id,
-        ]);
+        $pdo->prepare("UPDATE aid_history SET aid_type=?, aid_date=?, amount=?, notes=?, center_id=? WHERE id=?")
+            ->execute([
+                $data['aid_type'],
+                $data['aid_date'],
+                !empty($data['amount']) ? (int)$data['amount'] : null,
+                !empty($data['notes'])  ? Validator::sanitizeString($data['notes']) : null,
+                !empty($data['center_id']) ? (int)$data['center_id'] : null,
+                $id,
+            ]);
 
-        AuditLog::record('Update Bantuan', 'aid_history', $id, $oldRow, $data);
-        Response::success(['id' => $id], 'Bantuan berhasil diperbarui.');
+        AuditLog::record('Update Bantuan', 'aid_history', $id, $row, $data);
+        Response::success(null, 'Bantuan diperbarui.');
         break;
     }
 
@@ -151,13 +146,12 @@ switch ("$method:$action") {
 
         $pdo->prepare('DELETE FROM aid_history WHERE id=?')->execute([$id]);
         AuditLog::record('Hapus Bantuan', 'aid_history', $id, $row);
-        Response::success(null, 'Riwayat bantuan dihapus.');
+        Response::success(null, 'Bantuan dihapus.');
         break;
     }
 
     case 'GET:stats': {
-        $pdo = Database::get();
-
+        $pdo    = Database::get();
         $byType = $pdo->query("
             SELECT aid_type, COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS total_amount
             FROM aid_history GROUP BY aid_type ORDER BY cnt DESC
@@ -171,9 +165,12 @@ switch ("$method:$action") {
             GROUP BY month ORDER BY month DESC LIMIT 12
         ")->fetchAll();
 
+        $total = (int)$pdo->query("SELECT COUNT(DISTINCT household_id) FROM aid_history")->fetchColumn();
+
         Response::success([
-            'by_type'               => $byType,
-            'monthly'               => array_reverse($monthly),
+            'by_type'  => $byType,
+            'monthly'  => array_reverse($monthly),
+            'summary'  => ['total_distributions' => (int)$pdo->query("SELECT COUNT(*) FROM aid_history")->fetchColumn(), 'total_households_aided' => $total],
         ]);
         break;
     }
