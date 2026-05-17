@@ -3,81 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WebGIS — Manajemen Tempat Ibadah &amp; Kemiskinan v2</title>
+<title>WebGIS — Peta Kemiskinan</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <style>
-/* Additional styles for dependent fields */
-.dependent-entry {
-    background: var(--surface-2);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--r);
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    position: relative;
+/* Public-page overrides — hide admin-only elements */
+.nav-tab[data-tab="centers"],
+.nav-tab[data-tab="houses"],
+.nav-tab[data-tab="dashboard"],
+#houseSubFilters .filter-row:last-child,
+.data-item-actions { display: none !important; }
+
+/* Public banner */
+.public-banner {
+    background: linear-gradient(135deg, var(--accent) 0%, #2d45b8 100%);
+    color: white; padding: 10px 14px; border-radius: var(--r);
+    font-size: 11.5px; line-height: 1.5; margin-bottom: 2px;
+    display: flex; align-items: center; gap: 10px;
 }
-.dependent-entry .dependent-number {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-    margin-bottom: 8px;
+.public-banner i { font-size: 18px; flex-shrink: 0; opacity: 0.9; }
+.public-banner p { margin: 0; }
+.public-banner strong { display: block; font-size: 12.5px; }
+
+/* Report public button — floating */
+.btn-lapor {
+    position: absolute; bottom: 100px; right: 16px; z-index: 1000;
+    background: var(--danger); color: white;
+    padding: 10px 16px; border: none; border-radius: 24px;
+    font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; box-shadow: 0 4px 16px rgba(214,50,48,0.4);
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.18s; text-decoration: none;
 }
-.dependent-entry .btn-remove-dependent {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 1px solid var(--danger);
-    background: #fff;
-    color: var(--danger);
-    cursor: pointer;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-}
-.dependent-entry .btn-remove-dependent:hover {
-    background: #fff4f4;
-}
-.dependent-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-.dependent-grid .form-group {
+.btn-lapor:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(214,50,48,0.5); }
+
+/* Read-only popup — hide action buttons */
+.popup-actions { display: none !important; }
+
+/* Public info banner in popup */
+.popup-public-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9.5px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; background: rgba(58,86,212,0.1); color: var(--accent);
     margin-bottom: 6px;
-}
-.dependent-grid .form-group label {
-    font-size: 9.5px;
-    margin-bottom: 2px;
-}
-.dependent-grid .form-group input,
-.dependent-grid .form-group select {
-    padding: 6px 8px;
-    font-size: 11.5px;
-}
-.dependent-grid .form-group-full {
-    grid-column: 1 / -1;
-}
-#dependentsContainer {
-    max-height: 300px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-#dependentsContainer::-webkit-scrollbar {
-    width: 3px;
-}
-#dependentsContainer::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
 }
 </style>
 </head>
@@ -91,23 +62,29 @@
     <div class="sidebar-header">
         <div class="sidebar-logo"><i class="fas fa-map-marked-alt"></i></div>
         <div class="sidebar-title">
-            <h1>WebGIS Dashboard</h1>
-            <p>Tempat Ibadah &amp; Kemiskinan</p>
+            <h1>Peta Kemiskinan</h1>
+            <p>WebGIS Pontianak — Publik</p>
         </div>
         <div style="margin-left:auto;">
-            <button class="btn-admin-panel" onclick="openAdminPanel()" style="margin:0;padding:6px 12px;font-size:11px;">
-                <i class="fas fa-cog"></i> Admin
-            </button>
+            <a href="admin.html" class="user-btn" title="Halaman Admin" style="text-decoration:none;">
+                <i class="fas fa-lock"></i>
+            </a>
         </div>
     </div>
 
     <div class="sidebar-content">
-        <!-- Nav Tabs -->
+        <!-- Public info banner -->
+        <div class="public-banner">
+            <i class="fas fa-info-circle"></i>
+            <p><strong>Mode Publik</strong>Klik marker untuk melihat informasi. Gunakan tombol <em>Laporkan</em> untuk melaporkan warga yang perlu bantuan.</p>
+        </div>
+
+        <!-- Nav Tabs (only overview visible) -->
         <div class="nav-tabs">
-            <div class="nav-tab active" data-tab="overview" title="Ringkasan"><i class="fas fa-eye"></i> Ringkasan</div>
-            <div class="nav-tab" data-tab="centers" title="Tambah Tempat Ibadah"><i class="fas fa-place-of-worship"></i> Ibadah</div>
-            <div class="nav-tab" data-tab="houses"  title="Tambah Rumah"><i class="fas fa-home"></i> Rumah</div>
-            <div class="nav-tab" data-tab="dashboard" title="Dashboard Chart"><i class="fas fa-chart-bar"></i> Chart</div>
+            <div class="nav-tab active" data-tab="overview"><i class="fas fa-eye"></i> Ringkasan</div>
+            <div class="nav-tab" data-tab="centers" style="display:none;"></div>
+            <div class="nav-tab" data-tab="houses" style="display:none;"></div>
+            <div class="nav-tab" data-tab="dashboard" style="display:none;"></div>
         </div>
 
         <!-- KPI Cards -->
@@ -120,7 +97,7 @@
             <div class="stat-card green">
                 <div class="stat-icon"><i class="fas fa-home"></i></div>
                 <div class="stat-value" id="statHouses">0</div>
-                <div class="stat-label">Rumah</div>
+                <div class="stat-label">Rumah Terdata</div>
             </div>
             <div class="stat-card orange">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
@@ -132,20 +109,15 @@
                 <div class="stat-value" id="statAided">0</div>
                 <div class="stat-label">Terima Bantuan</div>
             </div>
-            <div class="stat-card red" id="cardReports">
-                <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="stat-value" id="statReports">0</div>
-                <div class="stat-label">Laporan Darurat</div>
-            </div>
         </div>
 
         <!-- Search -->
         <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Cari nama, alamat, No. KK...">
+            <input type="text" id="searchInput" placeholder="Cari nama, alamat...">
         </div>
 
-        <!-- Filters -->
+        <!-- Filter -->
         <div class="filter-section">
             <div class="filter-title">Filter Tampilan</div>
             <div class="filter-buttons">
@@ -155,15 +127,15 @@
             </div>
         </div>
 
-        <!-- Poverty + Age + Aid sub-filters -->
+        <!-- Poverty sub-filter only -->
         <div class="subfilter-section" id="houseSubFilters">
             <div class="filter-row">
                 <select id="filterPoverty" class="subfilter-select">
                     <option value="">Semua Status</option>
                     <option value="sangat_miskin">Sangat Miskin</option>
                     <option value="miskin">Miskin</option>
-                    <option value="hampir_miskin">Hampir Miskin</option>
-                    <option value="tidak_miskin">Tidak Miskin</option>
+                    <option value="rentan_miskin">Rentan Miskin</option>
+                    <option value="terdata">Terdata</option>
                 </select>
                 <select id="filterAid" class="subfilter-select">
                     <option value="">Semua Bantuan</option>
@@ -171,24 +143,9 @@
                     <option value="received">Sudah Terima</option>
                 </select>
             </div>
-            <div class="filter-row">
-                <select id="filterAge" class="subfilter-select">
-                    <option value="">Semua Usia</option>
-                    <option value="anak">Anak (&lt;12)</option>
-                    <option value="remaja">Remaja (12–17)</option>
-                    <option value="pemuda">Pemuda (18–30)</option>
-                    <option value="dewasa">Dewasa (31–59)</option>
-                    <option value="lansia">Lansia (60+)</option>
-                </select>
-                <select id="filterCondition" class="subfilter-select">
-                    <option value="">Semua Kondisi</option>
-                    <option value="tidak_layak">Tidak Layak</option>
-                    <option value="layak">Layak</option>
-                </select>
-            </div>
         </div>
 
-        <!-- Data Lists -->
+        <!-- Data Lists (read-only) -->
         <div id="dataListsContainer">
             <div class="data-section" id="centersListSection">
                 <div class="section-title">
@@ -196,22 +153,21 @@
                     <span class="count-badge" id="centerCount">0</span>
                 </div>
                 <div class="data-list" id="centersList">
-                    <div class="empty-state"><i class="fas fa-place-of-worship"></i><p>Belum ada data</p></div>
+                    <div class="empty-state"><i class="fas fa-place-of-worship"></i><p>Memuat...</p></div>
                 </div>
             </div>
-
             <div class="data-section" id="housesListSection">
                 <div class="section-title">
                     <span><i class="fas fa-home" style="margin-right:5px;"></i>Rumah</span>
                     <span class="count-badge" id="houseCount">0</span>
                 </div>
                 <div class="data-list" id="housesList">
-                    <div class="empty-state"><i class="fas fa-home"></i><p>Belum ada data</p></div>
+                    <div class="empty-state"><i class="fas fa-home"></i><p>Memuat...</p></div>
                 </div>
             </div>
         </div>
-    </div><!-- /sidebar-content -->
-</div><!-- /sidebar -->
+    </div>
+</div>
 
 <!-- ===== LEGEND ===== -->
 <div class="legend" id="legend">
@@ -223,31 +179,13 @@
     <div class="legend-item"><div class="legend-icon" style="background:#0e7f6e;"><i class="fas fa-om"></i></div><span>Pura</span></div>
     <div class="legend-item"><div class="legend-icon" style="background:#a16207;"><i class="fas fa-dharmachakra"></i></div><span>Vihara</span></div>
     <div class="legend-section-label" style="margin-top:10px;">Kategori Kemiskinan</div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#d63230;"></div>
-        <span>Sangat Miskin</span>
-    </div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#f76707;"></div>
-        <span>Miskin</span>
-    </div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#f59e0b;"></div>
-        <span>Rentan Miskin</span>
-    </div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#0b9e73;"></div>
-        <span>Terdata</span>
-    </div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#d63230;"></div><span>Sangat Miskin</span></div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#f76707;"></div><span>Miskin</span></div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#f59e0b;"></div><span>Rentan Miskin</span></div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#0b9e73;"></div><span>Terdata</span></div>
     <div class="legend-section-label" style="margin-top:10px;">Radius Ibadah</div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#d63230;"></div>
-        <span>Dalam Radius</span>
-    </div>
-    <div class="legend-poverty-item">
-        <div class="legend-poverty-dot" style="background:#0b9e73;"></div>
-        <span>Luar Radius</span>
-    </div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#d63230;"></div><span>Dalam Radius</span></div>
+    <div class="legend-poverty-item"><div class="legend-poverty-dot" style="background:#0b9e73;"></div><span>Luar Radius</span></div>
 </div>
 
 <!-- ===== LAYER CONTROL ===== -->
@@ -269,509 +207,47 @@
 
 <!-- ===== LOADING ===== -->
 <div class="loading" id="loading">
-    <i class="fas fa-circle-notch fa-spin"></i><span>Memproses...</span>
+    <i class="fas fa-circle-notch fa-spin"></i><span>Memuat data...</span>
 </div>
 
 <!-- ===== TOAST ===== -->
 <div class="toast" id="toast"></div>
 
+<!-- ===== PUBLIC REPORT BUTTON ===== -->
+<a href="lapor.html" class="btn-lapor" title="Laporkan warga yang perlu bantuan">
+    <i class="fas fa-flag"></i> Laporkan
+</a>
+
 <!-- ===== HELP BUTTON ===== -->
-<button class="help-btn" id="helpBtn" title="Panduan Pengguna"><i class="fas fa-question-circle"></i></button>
+<button class="help-btn" id="helpBtn" title="Informasi Peta"><i class="fas fa-question-circle"></i></button>
 
-<!-- ================================================================
-     MODAL: Religious Center
-================================================================ -->
-<div class="modal-overlay" id="centerModal">
-<div class="modal">
-    <div class="modal-header">
-        <h2 id="centerModalTitle">Tambah Tempat Ibadah</h2>
-        <span class="modal-close" onclick="closeModal('centerModal')">&times;</span>
-    </div>
-    <form id="centerForm" novalidate>
-        <input type="hidden" id="centerId">
-        <input type="hidden" id="centerLat">
-        <input type="hidden" id="centerLng">
-        <div class="form-group">
-            <label>Nama *</label>
-            <input type="text" id="centerName" required placeholder="Contoh: Masjid Al-Ikhlas">
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Jenis Ibadah</label>
-                <select id="centerWorshipType">
-                    <option value="masjid">Masjid</option>
-                    <option value="gereja">Gereja</option>
-                    <option value="klenteng">Klenteng</option>
-                    <option value="pura">Pura</option>
-                    <option value="vihara">Vihara</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Radius (m)</label>
-                <input type="number" id="centerRadius" min="50" max="5000" value="300" step="10">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Slider Radius</label>
-            <div class="slider-container">
-                <input type="range" id="centerRadiusSlider" min="50" max="5000" value="300" step="10">
-                <span class="slider-value" id="centerRadiusValue">300m</span>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Kontak Person</label>
-                <input type="text" id="centerContactPerson" placeholder="Nama penanggung jawab">
-            </div>
-            <div class="form-group">
-                <label>Nomor Telepon</label>
-                <input type="text" id="centerContactPhone" placeholder="08xx-xxxx-xxxx">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Catatan</label>
-            <textarea id="centerNotes" rows="2" placeholder="Informasi tambahan..."></textarea>
-        </div>
-        <div class="form-group">
-            <label>Alamat</label>
-            <input type="text" id="centerAddress" readonly placeholder="Terisi otomatis dari peta">
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Latitude</label>
-                <input type="text" id="centerLatDisplay" readonly>
-            </div>
-            <div class="form-group">
-                <label>Longitude</label>
-                <input type="text" id="centerLngDisplay" readonly>
-            </div>
-        </div>
-        <div class="modal-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal('centerModal')">Batal</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Household
-================================================================ -->
-<div class="modal-overlay" id="houseModal">
-<div class="modal" style="max-width:520px;">
-    <div class="modal-header">
-        <h2 id="houseModalTitle">Tambah Titik Rumah</h2>
-        <span class="modal-close" onclick="closeModal('houseModal')">&times;</span>
-    </div>
-    <form id="houseForm" novalidate>
-        <input type="hidden" id="houseId">
-        <input type="hidden" id="houseLat">
-        <input type="hidden" id="houseLng">
-
-        <!-- Poverty score preview -->
-        <div class="poverty-preview" id="povertyPreview">
-            <div class="poverty-score-ring" id="povertyRing">
-                <i id="povertyIcon" class="fas fa-circle" style="font-size:18px;"></i>
-            </div>
-            <div style="flex:1;">
-                <div class="poverty-status-label" id="povertyStatusLabel">Belum dihitung</div>
-                <div class="poverty-indicators" id="povertyIndicators" style="font-size:9px;color:#5a6478;margin-top:6px;padding-left:0;list-style:none;max-height:80px;overflow-y:auto;"></div>
-            </div>
-        </div>
-
-        <div class="form-tabs">
-            <button type="button" class="form-tab active" data-ftab="identity">Identitas KK</button>
-            <button type="button" class="form-tab" data-ftab="dependents">Anggota Keluarga</button>
-            <button type="button" class="form-tab" data-ftab="economic">Ekonomi</button>
-            <button type="button" class="form-tab" data-ftab="aid">Bantuan</button>
-        </div>
-
-        <!-- Tab: Identity -->
-        <div class="form-tab-panel active" id="ftab-identity">
-            <div class="form-group">
-                <label>Nama Kepala Keluarga *</label>
-                <input type="text" id="houseHeadName" required placeholder="Nama lengkap KK">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>NIK KK *</label>
-                    <input type="text" id="houseNIK" maxlength="16" placeholder="16 digit NIK" pattern="[0-9]{16}">
-                </div>
-                <div class="form-group">
-                    <label>Jenis Kelamin *</label>
-                    <select id="houseGender" required>
-                        <option value="male">Laki-laki</option>
-                        <option value="female">Perempuan</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Tanggal Lahir KK *</label>
-                    <input type="date" id="houseDOB" required>
-                </div>
-                <div class="form-group">
-                    <label>Pendidikan KK *</label>
-                    <select id="houseEducation" onchange="recalcPoverty()">
-                        <option value="tidak_sekolah">Tidak Sekolah</option>
-                        <option value="sd" selected>SD</option>
-                        <option value="smp">SMP</option>
-                        <option value="sma">SMA</option>
-                        <option value="diploma">Diploma</option>
-                        <option value="sarjana">Sarjana</option>
-                        <option value="pascasarjana">Pascasarjana</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab: Dependents -->
-        <div class="form-tab-panel" id="ftab-dependents">
-            <div class="form-group">
-                <label>Jumlah Anggota Keluarga (Termasuk KK)</label>
-                <input type="number" id="houseDependents" min="1" value="1" onchange="generateDependentFields()">
-                <small style="color:var(--text-muted);font-size:10px;">Isi jumlah total anggota keluarga. Field untuk setiap anggota akan muncul di bawah.</small>
-            </div>
-            <div id="dependentsContainer"></div>
-        </div>
-
-        <!-- Tab: Economic -->
-        <div class="form-tab-panel" id="ftab-economic">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Pendapatan/Bulan (Rp) *</label>
-                    <input type="number" id="houseIncome" min="0" value="0" placeholder="0" onchange="recalcPoverty()">
-                </div>
-                <div class="form-group">
-                    <label>Pekerjaan</label>
-                    <input type="text" id="houseJob" placeholder="Contoh: Buruh Harian">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Kondisi Rumah</label>
-                    <select id="houseCondition" onchange="recalcPoverty()">
-                        <option value="layak" selected>Layak</option>
-                        <option value="tidak_layak">Tidak Layak</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Kepemilikan Lahan</label>
-                    <select id="houseLandOwnership">
-                        <option value="milik">Milik Sendiri</option>
-                        <option value="sewa">Sewa</option>
-                        <option value="numpang">Numpang</option>
-                        <option value="lainnya">Lainnya</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Alamat</label>
-                <input type="text" id="houseAddress" readonly placeholder="Terisi otomatis dari peta">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Latitude</label>
-                    <input type="text" id="houseLatDisplay" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Longitude</label>
-                    <input type="text" id="houseLngDisplay" readonly>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Keterangan</label>
-                <textarea id="houseDescription" rows="2" placeholder="Informasi tambahan..."></textarea>
-            </div>
-        </div>
-
-        <!-- Tab: Aid — Updated with edit/delete -->
-        <div class="form-tab-panel" id="ftab-aid">
-            <div class="form-group">
-                <label>Status Bantuan</label>
-                <select id="houseAidStatus">
-                    <option value="not_yet">Belum Terima Bantuan</option>
-                    <option value="received">Sudah Terima Bantuan</option>
-                </select>
-            </div>
-            <div id="aidHistoryPanel" style="margin-top:12px;">
-                <div class="section-title" style="margin-bottom:8px;">
-                    <span>Riwayat Bantuan</span>
-                    <button type="button" class="btn btn-success btn-sm" id="addAidBtn" style="display:none;padding:4px 8px;font-size:10px;">
-                        <i class="fas fa-plus"></i> Tambah
-                    </button>
-                </div>
-                <div id="aidHistoryList" class="aid-history-list">
-                    <div class="empty-state" style="padding:14px;">
-                        <i class="fas fa-gift"></i><p>Belum ada riwayat bantuan</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal('houseModal')">Batal</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Add Aid Record
-================================================================ -->
-<div class="modal-overlay" id="aidModal">
-<div class="modal" style="max-width:380px;">
-    <div class="modal-header">
-        <h2>Catat Bantuan</h2>
-        <span class="modal-close" onclick="closeModal('aidModal')">&times;</span>
-    </div>
-    <form id="aidForm" novalidate>
-        <input type="hidden" id="aidHouseholdId">
-        <div class="form-group">
-            <label>Jenis Bantuan *</label>
-            <select id="aidType">
-                <option value="sembako">Sembako</option>
-                <option value="pendanaan">Pendanaan</option>
-                <option value="pelatihan">Pelatihan</option>
-                <option value="sembako_pendanaan">Sembako + Pendanaan</option>
-                <option value="sembako_pelatihan">Sembako + Pelatihan</option>
-                <option value="pendanaan_pelatihan">Pendanaan + Pelatihan</option>
-                <option value="lengkap">Lengkap (Semua)</option>
-            </select>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Tanggal *</label>
-                <input type="date" id="aidDate" required>
-            </div>
-            <div class="form-group">
-                <label>Jumlah (Rp)</label>
-                <input type="number" id="aidAmount" min="0" value="0">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Catatan</label>
-            <textarea id="aidNotes" rows="2" placeholder="Catatan tambahan..."></textarea>
-        </div>
-        <div class="modal-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal('aidModal')">Batal</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Emergency Report
-================================================================ -->
-<div class="modal-overlay" id="reportModal">
-<div class="modal" style="max-width:400px;">
-    <div class="modal-header">
-        <h2>Laporan Darurat</h2>
-        <span class="modal-close" onclick="closeModal('reportModal')">&times;</span>
-    </div>
-    <form id="reportForm" novalidate>
-        <input type="hidden" id="reportHouseholdId">
-        <div class="form-group">
-            <label>Jenis Kejadian *</label>
-            <select id="reportType">
-                <option value="sakit">Sakit</option>
-                <option value="kecelakaan">Kecelakaan</option>
-                <option value="bencana">Bencana</option>
-                <option value="kehilangan_pekerjaan">Kehilangan Pekerjaan</option>
-                <option value="kematian">Kematian</option>
-                <option value="lainnya">Lainnya</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Tingkat Keparahan *</label>
-            <select id="reportSeverity">
-                <option value="ringan">Ringan</option>
-                <option value="sedang" selected>Sedang</option>
-                <option value="berat">Berat</option>
-                <option value="kritis">Kritis</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Deskripsi *</label>
-            <textarea id="reportDescription" rows="3" required placeholder="Jelaskan situasi..."></textarea>
-        </div>
-        <div class="modal-actions">
-            <button type="submit" class="btn btn-danger"><i class="fas fa-exclamation-triangle"></i> Laporkan</button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal('reportModal')">Batal</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Admin Panel
-================================================================ -->
-<div class="modal-overlay" id="adminModal">
-<div class="modal" style="max-width:700px;">
-    <div class="modal-header">
-        <h2><i class="fas fa-cog"></i> Panel Admin</h2>
-        <span class="modal-close" onclick="closeModal('adminModal')">&times;</span>
-    </div>
-    <div class="admin-tabs">
-        <button class="admin-tab active" data-atab="audit">Audit Log</button>
-        <button class="admin-tab" data-atab="reports">Lap. Darurat</button>
-    </div>
-    <div class="admin-tab-panel active" id="atab-audit">
-        <div class="admin-table-wrap"><table class="admin-table">
-            <thead><tr><th>Waktu</th><th>Aksi</th><th>Tabel</th><th>ID</th><th>IP</th></tr></thead>
-            <tbody id="auditTbody"><tr><td colspan="5" class="text-center">Memuat...</td></tr></tbody>
-        </table></div>
-    </div>
-    <div class="admin-tab-panel" id="atab-reports">
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <select id="reportStatusFilter" onchange="loadReportsTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:11px;background:var(--surface-2);">
-                <option value="">Semua Status</option>
-                <option value="open">Terbuka</option>
-                <option value="in_progress">Diproses</option>
-                <option value="resolved">Selesai</option>
-                <option value="closed">Ditutup</option>
-            </select>
-            <select id="reportSeverityFilter" onchange="loadReportsTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:11px;background:var(--surface-2);">
-                <option value="">Semua Keparahan</option>
-                <option value="kritis">Kritis</option>
-                <option value="berat">Berat</option>
-                <option value="sedang">Sedang</option>
-                <option value="ringan">Ringan</option>
-            </select>
-        </div>
-        <div class="admin-table-wrap" style="max-height:400px;">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Waktu</th>
-                        <th>Rumah</th>
-                        <th>Jenis</th>
-                        <th>Keparahan</th>
-                        <th>Status</th>
-                        <th>Deskripsi</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="reportsTbody">
-                    <tr><td colspan="7" class="text-center">Memuat...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div style="margin-top:8px;font-size:9px;color:var(--text-muted);background:var(--surface-2);padding:8px 12px;border-radius:var(--r-sm);">
-            <strong>Konsep Laporan Darurat:</strong> Setiap rumah dapat memiliki laporan darurat (sakit, kecelakaan, bencana, dll).
-            Laporan dapat dibuat dari popup marker rumah atau melalui form. Status laporan dapat diubah menjadi "Diproses", "Selesai", atau "Ditutup".
-            Data ini juga muncul di dashboard statistik untuk monitoring.
-        </div>
-    </div>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Dashboard Charts
-================================================================ -->
-<!-- ================================================================
-     MODAL: Dashboard Charts
-================================================================ -->
-<div class="modal-overlay" id="dashboardModal">
-<div class="modal">
-    <div class="modal-header">
-        <h2><i class="fas fa-chart-pie"></i> Dashboard Analitik</h2>
-        <span class="modal-close" onclick="closeModal('dashboardModal')">&times;</span>
-    </div>
-    
-    <div class="dashboard-scroll">
-        <div class="dashboard-grid">
-            
-            <!-- Poverty Distribution (Doughnut) -->
-            <div class="chart-card chart-card-sm">
-                <div class="chart-card-header">
-                    <h3><i class="fas fa-layer-group"></i> Distribusi Kemiskinan</h3>
-                </div>
-                <div class="chart-canvas-wrap">
-                    <canvas id="chartPoverty"></canvas>
-                </div>
-            </div>
-            
-            <!-- Trend Registration (Line) -->
-            <div class="chart-card chart-card-sm">
-                <div class="chart-card-header">
-                    <h3><i class="fas fa-chart-line"></i> Tren Pendataan</h3>
-                    <span class="chart-card-badge">12 Bulan</span>
-                </div>
-                <div class="chart-canvas-wrap">
-                    <canvas id="chartTrend"></canvas>
-                </div>
-            </div>
-            
-            <!-- Age Distribution (Bar) -->
-            <div class="chart-card chart-card-sm">
-                <div class="chart-card-header">
-                    <h3><i class="fas fa-user-clock"></i> Distribusi Usia KK</h3>
-                </div>
-                <div class="chart-canvas-wrap">
-                    <canvas id="chartAge"></canvas>
-                </div>
-            </div>
-            
-            <!-- Aid Distribution (Pie) -->
-            <div class="chart-card chart-card-sm">
-                <div class="chart-card-header">
-                    <h3><i class="fas fa-hand-holding-heart"></i> Distribusi Bantuan</h3>
-                </div>
-                <div class="chart-canvas-wrap">
-                    <canvas id="chartAid"></canvas>
-                </div>
-            </div>
-            
-        </div>
-    </div>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Help / Onboarding
-================================================================ -->
+<!-- Help Modal (public version) -->
 <div class="modal-overlay" id="helpModal">
-<div class="modal" style="max-width:500px;">
+<div class="modal" style="max-width:480px;">
     <div class="modal-header">
-        <h2><i class="fas fa-question-circle"></i> Panduan Pengguna</h2>
+        <h2><i class="fas fa-info-circle"></i> Tentang Peta Ini</h2>
         <span class="modal-close" onclick="closeModal('helpModal')">&times;</span>
     </div>
-    <div class="help-steps" id="helpSteps">
+    <div class="help-steps">
         <div class="help-step active" data-step="1">
             <div class="help-step-icon"><i class="fas fa-map-marked-alt"></i></div>
-            <h3>Selamat Datang di WebGIS v2</h3>
-            <p>Sistem pemetaan kemiskinan berbasis GIS yang membantu mengelola data rumah tangga dan tempat ibadah.</p>
+            <h3>Peta Kemiskinan Publik</h3>
+            <p>Peta ini menampilkan data rumah tangga yang terdata beserta tempat ibadah di wilayah ini. Data dikelola oleh petugas lapangan.</p>
         </div>
         <div class="help-step" data-step="2">
-            <div class="help-step-icon"><i class="fas fa-place-of-worship"></i></div>
-            <h3>Menambah Tempat Ibadah</h3>
-            <p>Klik tab <strong>"Ibadah"</strong> di sidebar, lalu klik lokasi pada peta. Form akan muncul untuk mengisi detail.</p>
+            <div class="help-step-icon"><i class="fas fa-mouse-pointer"></i></div>
+            <h3>Cara Menggunakan</h3>
+            <p>Klik marker <i class="fas fa-home"></i> atau ikon tempat ibadah untuk melihat informasi detail. Gunakan filter di sidebar untuk menyaring tampilan.</p>
         </div>
         <div class="help-step" data-step="3">
-            <div class="help-step-icon"><i class="fas fa-home"></i></div>
-            <h3>Menambah Rumah Tangga</h3>
-            <p>Klik tab <strong>"Rumah"</strong>, lalu klik lokasi pada peta. Skor kemiskinan dihitung <em>otomatis</em> berdasarkan data yang diisi.</p>
-        </div>
-        <div class="help-step" data-step="4">
-            <div class="help-step-icon"><i class="fas fa-palette"></i></div>
-            <h3>Arti Warna Marker</h3>
-            <p><span style="color:#d63230;">●</span> Sangat Miskin &nbsp;
-               <span style="color:#f76707;">●</span> Miskin &nbsp;
-               <span style="color:#f59e0b;">●</span> Hampir Miskin &nbsp;
-               <span style="color:#0b9e73;">●</span> Tidak Miskin</p>
-        </div>
-        <div class="help-step" data-step="5">
-            <div class="help-step-icon"><i class="fas fa-chart-bar"></i></div>
-            <h3>Dashboard &amp; Laporan</h3>
-            <p>Klik tab <strong>"Chart"</strong> untuk melihat grafik analitik. Gunakan Panel Admin untuk melihat audit log dan laporan darurat.</p>
+            <div class="help-step-icon"><i class="fas fa-flag" style="color:var(--danger);"></i></div>
+            <h3>Laporkan Warga</h3>
+            <p>Jika Anda mengetahui warga yang membutuhkan bantuan dan belum terdata, klik tombol <strong style="color:var(--danger);">Laporkan</strong> di pojok kanan bawah peta.</p>
         </div>
     </div>
     <div class="help-nav">
         <button class="btn btn-secondary btn-sm" id="helpPrev" onclick="helpNav(-1)" disabled>&#8592; Sebelumnya</button>
-        <span id="helpProgress">1 / 5</span>
+        <span id="helpProgress">1 / 3</span>
         <button class="btn btn-primary btn-sm" id="helpNext" onclick="helpNav(1)">Berikutnya &#8594;</button>
     </div>
 </div>
@@ -779,14 +255,195 @@
 
 <!-- ===== SCRIPTS ===== -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="assets/js/chart.umd.min.js"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/map.js"></script>
 <script src="assets/js/markers.js"></script>
-<script src="assets/js/forms.js"></script>
-<script src="assets/js/dashboard.js"></script>
-<script src="assets/js/admin.js"></script>
-<script src="assets/js/app.js"></script>
+<script>
+// ================================================================
+// PUBLIC PAGE — override: disable dragging, remove edit actions
+// ================================================================
+'use strict';
+
+// Override addCenterMarker to make non-draggable
+const _origAddCenter = addCenterMarker;
+// Override renderHouses to disable drag
+const _origAddHouse = addHouseMarker;
+
+// Override popup content to be read-only
+const _origShowCenter = showCenterPopup;
+const _origShowHouse  = showHousePopup;
+
+// Replace showCenterPopup with read-only version
+window.showCenterPopup = function(marker, center) {
+    const color = CENTER_COLORS[center.worship_type] || '#3a56d4';
+    const icon  = CENTER_ICONS[center.worship_type]  || 'fa-place-of-worship';
+    const label = CENTER_LABELS[center.worship_type] || center.worship_type;
+
+    const popup = L.popup({ maxWidth: 280, closeButton: true })
+        .setLatLng(marker.getLatLng())
+        .setContent(`
+        <div class="popup-info">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #edf0f6;">
+                <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;flex-shrink:0;">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <div>
+                    <strong style="font-size:13px;color:#0f1623;">${center.name}</strong>
+                    <div style="font-size:10px;color:#9ba4b5;">${label}</div>
+                </div>
+            </div>
+            <p><i class="fas fa-map-marker-alt"></i>${truncate(center.address || '—', 45)}</p>
+            <p><i class="fas fa-ruler-combined"></i>Radius: <strong>${center.radius}m</strong></p>
+            <p><i class="fas fa-home"></i>Rumah dalam radius: <strong>${center.household_count ?? '—'}</strong></p>
+        </div>`);
+
+    marker.unbindPopup();
+    marker.bindPopup(popup).openPopup();
+};
+
+// Replace showHousePopup with read-only version
+window.showHousePopup = function(marker, h) {
+    const insideRadius = isHouseInsideAnyRadius(h.latitude, h.longitude);
+    const radiusColor  = insideRadius ? '#d63230' : '#0b9e73';
+    const radiusText   = insideRadius ? 'Dalam Radius' : 'Luar Radius';
+    const povColor     = POVERTY_COLORS[h.poverty_status] || '#9ba4b5';
+    const povLabel     = POVERTY_LABELS[h.poverty_status] || h.poverty_status;
+
+    const popup = L.popup({ maxWidth: 270, closeButton: true })
+        .setLatLng(marker.getLatLng())
+        .setContent(`
+        <div class="popup-info">
+            <span class="popup-public-badge"><i class="fas fa-eye"></i> Info Publik</span>
+            <div style="margin-bottom:6px;padding-bottom:7px;border-bottom:1px solid #edf0f6;">
+                <strong style="font-size:13px;color:#0f1623;">${h.head_name}</strong>
+            </div>
+            <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
+                <span style="padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${povColor}15;color:${povColor};">
+                    ● ${povLabel}
+                </span>
+                <span style="padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${radiusColor}15;color:${radiusColor};">
+                    ○ ${radiusText}
+                </span>
+            </div>
+            <p><i class="fas fa-map-marker-alt"></i>${truncate(h.address || '—', 42)}</p>
+            <p><i class="fas fa-users"></i>Anggota: <strong>${h.dependents}</strong> orang</p>
+            ${h.center_name ? `<p><i class="fas fa-place-of-worship"></i>Pusat: ${h.center_name}</p>` : ''}
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid #edf0f6;">
+                <a href="lapor.html" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--danger);color:white;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;">
+                    <i class="fas fa-flag"></i> Laporkan Warga
+                </a>
+            </div>
+        </div>`);
+
+    marker.unbindPopup();
+    marker.bindPopup(popup).openPopup();
+};
+
+// Disable marker dragging on public page
+document.addEventListener('DOMContentLoaded', async () => {
+    initMap();
+    initFilters();
+
+    // Make map click do nothing (no placement)
+    MAP.off('click');
+
+    showLoading(true);
+    await Promise.all([loadCenters(), loadHouses(), loadStats()]);
+    showLoading(false);
+
+    // Help
+    let helpStep = 1;
+    const helpTotal = 3;
+    document.getElementById('helpBtn')?.addEventListener('click', () => {
+        helpStep = 1; updateHelpStep(); openModal('helpModal');
+    });
+    window.helpNav = function(dir) {
+        helpStep = Math.min(helpTotal, Math.max(1, helpStep + dir));
+        updateHelpStep();
+    };
+    function updateHelpStep() {
+        document.querySelectorAll('.help-step').forEach(s => s.classList.remove('active'));
+        document.querySelector(`.help-step[data-step="${helpStep}"]`)?.classList.add('active');
+        document.getElementById('helpProgress').textContent = helpStep + ' / ' + helpTotal;
+        document.getElementById('helpPrev').disabled = helpStep === 1;
+        const nextBtn = document.getElementById('helpNext');
+        if (helpStep === helpTotal) {
+            nextBtn.textContent = 'Tutup';
+            nextBtn.onclick = () => closeModal('helpModal');
+        } else {
+            nextBtn.textContent = 'Berikutnya →';
+            nextBtn.onclick = () => helpNav(1);
+        }
+    }
+});
+
+async function loadCenters() {
+    const r = await ApiCenters.list();
+    if (r.ok && r.data?.success) State.centers = r.data.data.centers || [];
+    renderCenters();
+}
+
+async function loadHouses() {
+    const params = { limit: 500 };
+    if (State.povertyFilter) params.poverty_status = State.povertyFilter;
+    if (State.aidFilter)     params.aid_status      = State.aidFilter;
+    if (State.searchQuery)   params.q               = State.searchQuery;
+    const r = await ApiHouses.list(params);
+    if (r.ok && r.data?.success) State.houses = r.data.data.households || [];
+    renderHouses();
+}
+
+async function loadStats() {
+    const r = await ApiStats.overview();
+    if (!r.ok || !r.data?.success) return;
+    const d = r.data.data;
+    animateCount('statCenters',    d.centers);
+    animateCount('statHouses',     d.households);
+    animateCount('statPopulation', d.population);
+    animateCount('statAided',      d.aid_received);
+}
+
+function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const start = parseInt(el.textContent.replace(/\D/g,'')) || 0;
+    let step = 0;
+    const interval = setInterval(() => {
+        step++;
+        el.textContent = Math.round(start + ((target - start) * step / 20)).toLocaleString('id-ID');
+        if (step >= 20) clearInterval(interval);
+    }, 30);
+}
+
+function initFilters() {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            State.activeFilter = btn.dataset.filter;
+            renderCenters(); renderHouses();
+        });
+    });
+    document.getElementById('filterPoverty')?.addEventListener('change', function() {
+        State.povertyFilter = this.value; loadHouses();
+    });
+    document.getElementById('filterAid')?.addEventListener('change', function() {
+        State.aidFilter = this.value; loadHouses();
+    });
+    document.getElementById('searchInput')?.addEventListener('input', function() {
+        State.searchQuery = this.value.trim();
+        renderCenters(); renderHouses();
+    });
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            if (m.style.display === 'flex') { m.style.display = 'none'; document.body.style.overflow = ''; }
+        });
+    }
+});
+</script>
 </body>
 </html>
