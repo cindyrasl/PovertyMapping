@@ -15,7 +15,10 @@ switch ($action) {
         $households  = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1")->fetchColumn();
         $population  = (int)$pdo->query("SELECT COALESCE(SUM(dependents),0) FROM households WHERE is_active=1")->fetchColumn();
         $aidReceived = (int)$pdo->query("SELECT COUNT(*) FROM households WHERE is_active=1 AND aid_status='received'")->fetchColumn();
-        $openReports = (int)$pdo->query("SELECT COUNT(*) FROM emergency_reports WHERE status IN ('open','in_progress')")->fetchColumn();
+        $openReports = 0;
+        try {
+            $openReports = (int)$pdo->query("SELECT COUNT(*) FROM emergency_reports WHERE status IN ('open','in_progress')")->fetchColumn();
+        } catch (\Throwable) {}
         $pendingPublic = 0;
         try {
             $pendingPublic = (int)$pdo->query("SELECT COUNT(*) FROM public_reports WHERE status='pending'")->fetchColumn();

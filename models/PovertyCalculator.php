@@ -115,6 +115,7 @@ class PovertyCalculator
             'label'      => $label,
             'indicators' => $indicators,
             'severity'   => $severityPoints,
+            'score'      => (int)min(100, round(($severityPoints / 14) * 100)),
         ];
     }
 

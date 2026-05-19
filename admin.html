@@ -66,15 +66,58 @@
 .btn-approve:hover { filter: brightness(0.92); }
 .btn-reject  { background: var(--danger); color: white; }
 .btn-reject:hover  { filter: brightness(0.92); }
+
+/* Improved popup readability */
+.popup-info { padding: 14px 16px; }
+.popup-info .popup-name {
+    font-size: 14px; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 2px; line-height: 1.3;
+}
+.popup-info .popup-hint {
+    font-size: 9.5px; color: var(--text-muted); margin-bottom: 10px;
+}
+.popup-info .popup-badges {
+    display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle);
+}
+.popup-info .popup-badge {
+    padding: 3px 9px; border-radius: 20px; font-size: 9.5px; font-weight: 700;
+    white-space: nowrap;
+}
+.popup-info .popup-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);
+}
+.popup-info .popup-row i {
+    font-size: 10px; color: var(--text-muted); margin-top: 2px; flex-shrink: 0; width: 12px;
+}
+.popup-info .popup-row strong { color: var(--text-primary); font-weight: 600; }
+.popup-info .popup-section {
+    margin-top: 10px; padding: 9px 11px;
+    background: var(--surface-2); border-radius: var(--r-sm);
+    border: 1px solid var(--border-subtle);
+}
+.popup-info .popup-section-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px;
+}
+.popup-actions {
+    display: flex; gap: 5px; margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--border-subtle); flex-wrap: wrap;
+}
+.popup-actions .btn { margin: 0; font-size: 11px; padding: 6px 10px; }
+
+/* Admin-only: single tab panel without tab bar */
+.admin-tab-panel.active { display: block; }
+.admin-tab-panel { display: none; }
 </style>
 </head>
 <body>
 
 <!-- Admin top bar -->
 <div class="admin-top-bar">
-    <a href="index.html"><i class="fas fa-globe"></i> Peta Publik</a>
     <a href="admin.html" class="current"><i class="fas fa-cog"></i> Admin</a>
-    <a href="lapor.html" target="_blank"><i class="fas fa-flag"></i> Form Lapor</a>
+    <a href="lapor.html" target="_blank"><i class="fas fa-flag"></i> Form Laporan Publik</a>
 </div>
 
 <!-- ===== MAP ===== -->
@@ -126,10 +169,10 @@
                 <div class="stat-value" id="statAided">0</div>
                 <div class="stat-label">Terima Bantuan</div>
             </div>
-            <div class="stat-card red" id="cardReports">
-                <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="stat-value" id="statReports">0</div>
-                <div class="stat-label">Laporan Darurat</div>
+            <div class="stat-card red" id="cardPending">
+                <div class="stat-icon"><i class="fas fa-flag"></i></div>
+                <div class="stat-value" id="statPending">0</div>
+                <div class="stat-label">Laporan Publik</div>
             </div>
         </div>
 
@@ -529,50 +572,7 @@
 </div>
 
 <!-- ================================================================
-     MODAL: Emergency Report (from popup)
-================================================================ -->
-<div class="modal-overlay" id="reportModal">
-<div class="modal" style="max-width:400px;">
-    <div class="modal-header">
-        <h2>Laporan Darurat</h2>
-        <span class="modal-close" onclick="closeModal('reportModal')">&times;</span>
-    </div>
-    <form id="reportForm" novalidate>
-        <input type="hidden" id="reportHouseholdId">
-        <div class="form-group">
-            <label>Jenis Kejadian *</label>
-            <select id="reportType">
-                <option value="sakit">Sakit</option>
-                <option value="kecelakaan">Kecelakaan</option>
-                <option value="bencana">Bencana</option>
-                <option value="kehilangan_pekerjaan">Kehilangan Pekerjaan</option>
-                <option value="kematian">Kematian</option>
-                <option value="lainnya">Lainnya</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Keparahan *</label>
-            <select id="reportSeverity">
-                <option value="ringan">Ringan</option>
-                <option value="sedang" selected>Sedang</option>
-                <option value="berat">Berat</option>
-                <option value="kritis">Kritis</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Deskripsi *</label>
-            <textarea id="reportDescription" rows="3" required placeholder="Jelaskan situasi..."></textarea>
-        </div>
-        <div class="modal-actions">
-            <button type="submit" class="btn btn-danger"><i class="fas fa-exclamation-triangle"></i> Laporkan</button>
-            <button type="button" class="btn btn-secondary" onclick="closeModal('reportModal')">Batal</button>
-        </div>
-    </form>
-</div>
-</div>
-
-<!-- ================================================================
-     MODAL: Admin Panel (users, audit, emergency reports, public reports)
+     MODAL: Admin Panel — Public Reports only
 ================================================================ -->
 <div class="modal-overlay" id="adminModal">
 <div class="modal" style="max-width:750px;">
@@ -582,61 +582,28 @@
     </div>
     <div class="admin-tabs">
         <button class="admin-tab active" data-atab="pending">
-            Laporan Publik <span class="pending-badge" id="pendingBadge"></span>
+            <i class="fas fa-flag"></i> Laporan Publik
+            <span class="pending-badge" id="pendingBadge"></span>
         </button>
-        <button class="admin-tab" data-atab="reports">Laporan Darurat</button>
-        <button class="admin-tab" data-atab="audit">Audit Log</button>
-        <button class="admin-tab" data-atab="users">Pengguna</button>
     </div>
 
     <!-- Tab: Pending public reports -->
     <div class="admin-tab-panel active" id="atab-pending">
         <div class="admin-toolbar">
-            <select id="pendingStatusFilter" class="admin-search" style="max-width:140px;">
+            <select id="pendingStatusFilter" class="admin-search" style="max-width:150px;">
                 <option value="pending">Menunggu</option>
                 <option value="approved">Disetujui</option>
                 <option value="rejected">Ditolak</option>
-                <option value="">Semua</option>
+                <option value="">Semua Status</option>
             </select>
-            <button class="btn btn-secondary btn-sm" onclick="loadPendingReports()"><i class="fas fa-sync"></i> Refresh</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadPendingReports()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
         </div>
         <div class="admin-table-wrap">
             <table class="admin-table" id="pendingTable">
                 <thead><tr><th>Waktu</th><th>Nama Warga</th><th>Alamat</th><th>Deskripsi</th><th>Status</th><th>Aksi</th></tr></thead>
                 <tbody id="pendingTbody"><tr><td colspan="6" class="text-center">Klik Refresh untuk memuat.</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Tab: Emergency reports -->
-    <div class="admin-tab-panel" id="atab-reports">
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead><tr><th>Waktu</th><th>Rumah</th><th>Jenis</th><th>Keparahan</th><th>Status</th><th>Deskripsi</th><th>Aksi</th></tr></thead>
-                <tbody id="reportsTbody"><tr><td colspan="7" class="text-center">Memuat...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Tab: Audit log -->
-    <div class="admin-tab-panel" id="atab-audit">
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead><tr><th>Waktu</th><th>Aksi</th><th>Tabel</th><th>ID</th><th>IP</th></tr></thead>
-                <tbody id="auditTbody"><tr><td colspan="5" class="text-center">Memuat...</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Tab: Users -->
-    <div class="admin-tab-panel" id="atab-users">
-        <div class="admin-toolbar">
-            <input type="text" id="userSearch" placeholder="Cari pengguna..." class="admin-search">
-        </div>
-        <div class="admin-table-wrap">
-            <table class="admin-table" id="usersTable">
-                <thead><tr><th>Nama</th><th>Email</th><th>Login Terakhir</th><th>Terdaftar</th></tr></thead>
-                <tbody id="usersTbody"><tr><td colspan="4" class="text-center">Memuat...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -727,7 +694,7 @@
         <h2><i class="fas fa-chart-bar"></i> Dashboard Analitik</h2>
         <span class="modal-close" onclick="closeModal('dashboardModal')">&times;</span>
     </div>
-    <div class="dashboard-charts-grid">
+    <div class="dashboard-grid" id="dashboardGrid">
         <div class="chart-card chart-card-sm">
             <div class="chart-card-header"><h3><i class="fas fa-chart-pie"></i> Distribusi Kemiskinan</h3></div>
             <div class="chart-canvas-wrap"><canvas id="chartPoverty"></canvas></div>
