@@ -119,15 +119,20 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
 /* ===== COORD DISPLAY ===== */
 .coord-display {
-    display: flex; gap: 8px; align-items: center;
+    display: flex; gap: 8px; align-items: flex-start;
     padding: 9px 11px; background: var(--surface-2);
     border: 1px solid var(--border-subtle); border-radius: var(--r-sm);
     font-size: 12px; color: var(--text-secondary);
+    transition: border-color 0.2s;
 }
-.coord-display i { color: var(--accent); font-size: 13px; }
+.coord-display i { color: var(--accent); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
 .coord-value {
     font-family: 'DM Mono', monospace; font-size: 11.5px;
     color: var(--text-primary); font-weight: 500;
+}
+.coord-geocode-status {
+    font-size: 10px; margin-top: 2px; min-height: 14px;
+    transition: all 0.2s; color: var(--text-muted);
 }
 .coord-hint {
     font-size: 10.5px; color: var(--text-muted);
@@ -139,7 +144,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
 /* ===== MINI MAP ===== */
 #miniMap {
-    width: 100%; height: 400px; border-radius: var(--r-lg);
+    width: 100%; height: 320px; border-radius: var(--r-lg);
     border: 2px solid var(--border); cursor: crosshair;
     transition: border-color 0.2s;
 }
@@ -206,6 +211,36 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 .toast.success { background: var(--success); }
 .toast.error   { background: var(--danger); }
 @keyframes toastIn { from{transform:translate(-50%,16px);opacity:0} to{transform:translate(-50%,0);opacity:1} }
+
+/* ===== ADDRESS GEOCODING STATE ===== */
+.addr-wrap { position: relative; }
+.addr-status {
+    position: absolute; right: 10px; top: 10px;
+    font-size: 11px; display: flex; align-items: center; gap: 5px;
+    pointer-events: none; transition: opacity 0.2s;
+}
+.addr-status.hidden { opacity: 0; }
+.addr-status.loading { color: var(--accent); }
+.addr-status.synced  { color: var(--success); }
+.addr-status.error   { color: var(--danger); }
+.addr-status .spin   { animation: spin 0.8s linear infinite; display: inline-block; }
+
+/* Address field adjusted to not overlap status icon */
+#reportAddress { padding-right: 90px; }
+
+/* Coord card animated border while fetching */
+.coord-display.fetching {
+    border-color: var(--accent);
+    animation: borderPulse 1.2s ease-in-out infinite;
+}
+@keyframes borderPulse {
+    0%,100% { border-color: var(--border-subtle); }
+    50%      { border-color: var(--accent); }
+}
+
+/* Map tip synced state */
+.map-tip.synced { color: var(--success); }
+.map-tip.synced i { color: var(--success); }
 </style>
 </head>
 <body>
@@ -219,7 +254,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
             <h1>Laporkan Warga Membutuhkan</h1>
             <p>Bantu kami mendata warga yang belum terdata dan membutuhkan bantuan</p>
         </div>
-        <a href="admin.html" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Admin</a>
+        <!-- <a href="admin.html" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Admin</a> -->
     </div>
 
     <!-- Success state (hidden initially) -->
@@ -239,7 +274,6 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
             <i class="fas fa-info-circle"></i>
             <div>
                 <strong>Cara pengisian:</strong> Isi data warga yang Anda ketahui, lalu klik lokasi rumah mereka di peta mini. Klik titik merah untuk menggesernya jika perlu.
-                Data pelapor bersifat <em>opsional</em> dan hanya untuk keperluan konfirmasi.
             </div>
         </div>
 
@@ -248,13 +282,13 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
             <!-- Left: Form -->
             <div>
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-user"></i> Data Pelapor <span style="font-size:9.5px;font-weight:500;color:var(--text-muted);text-transform:lowercase;letter-spacing:0;">(opsional)</span></div>
+                    <div class="card-title"><i class="fas fa-user"></i> Data Pelapor</div>
                     <div class="form-group">
-                        <label>Nama Anda <span class="optional">opsional</span></label>
-                        <input type="text" id="reporterName" placeholder="Nama lengkap (boleh dikosongkan)">
+                        <label>Nama Anda <span style="color: red;">*</span></label>
+                        <input type="text" id="reporterName" placeholder="Nama lengkap">
                     </div>
                     <div class="form-group">
-                        <label>Nomor Telepon <span class="optional">opsional</span></label>
+                        <label>Nomor Telepon <span style="color: red;">*</span></label>
                         <input type="tel" id="reporterPhone" placeholder="08xx-xxxx-xxxx">
                     </div>
                 </div>
@@ -262,17 +296,23 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
                 <div class="card" style="margin-top:14px;">
                     <div class="card-title"><i class="fas fa-home"></i> Data Warga yang Dilaporkan</div>
                     <div class="form-group">
-                        <label>Nama Kepala Keluarga *</label>
+                        <label>Nama Kepala Keluarga <span style="color: red;">*</span></label>
                         <input type="text" id="headName" required placeholder="Nama lengkap kepala keluarga">
                         <div class="field-error" id="errHeadName"><i class="fas fa-exclamation-circle"></i> Nama warga harus diisi.</div>
                     </div>
                     <div class="form-group">
-                        <label>Alamat Lengkap *</label>
-                        <textarea id="reportAddress" required placeholder="Jalan, RT/RW, Kelurahan, Kecamatan..." rows="3"></textarea>
+                        <label>Alamat Lengkap <span style="color: red;">*</span></label>
+                        <div class="addr-wrap">
+                            <textarea id="reportAddress" required placeholder="Klik peta untuk mengisi otomatis, atau ketik manual..." rows="3"></textarea>
+                            <span class="addr-status hidden" id="addrStatus">
+                                <i class="fas fa-circle-notch spin" id="addrStatusIcon"></i>
+                                <span id="addrStatusText"></span>
+                            </span>
+                        </div>
                         <div class="field-error" id="errAddress"><i class="fas fa-exclamation-circle"></i> Alamat harus diisi.</div>
                     </div>
                     <div class="form-group">
-                        <label>Alasan Perlu Bantuan *</label>
+                        <label>Alasan Perlu Bantuan <span style="color: red;">*</span></label>
                         <textarea id="reportDescription" required rows="4"
                             placeholder="Contoh: Keluarga ini tinggal di rumah tidak layak, tidak memiliki penghasilan tetap, dan belum pernah menerima bantuan apapun..."></textarea>
                         <div class="field-error" id="errDescription"><i class="fas fa-exclamation-circle"></i> Alasan perlu diisi (minimal 20 karakter).</div>
@@ -281,10 +321,11 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
                 <div class="card" style="margin-top:14px;">
                     <div class="card-title"><i class="fas fa-map-pin"></i> Koordinat Lokasi</div>
-                    <div class="coord-display">
+                    <div class="coord-display" id="coordCard">
                         <i class="fas fa-crosshairs"></i>
-                        <div>
-                            <div class="coord-value" id="coordDisplay">Belum dipilih</div>
+                        <div style="flex:1;min-width:0;">
+                            <div class="coord-value" id="coordValue">Belum dipilih</div>
+                            <div class="coord-geocode-status" id="coordGeocodeStatus"></div>
                         </div>
                     </div>
                     <div class="coord-hint" id="coordHint">
@@ -324,10 +365,12 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 <script>
 'use strict';
 
-// ===== MAP INIT =====
+// ================================================================
+// MAP INIT
+// ================================================================
 const miniMap = L.map('miniMap', {
     center: [-0.0236, 109.3426],
-    zoom: 14,
+    zoom:   14,
     zoomControl: true,
 });
 
@@ -336,69 +379,234 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
 }).addTo(miniMap);
 
-let pinMarker = null;
+let pinMarker       = null;
+let geocodeAbort    = null;   // AbortController for in-flight requests
+let geocodeTimer    = null;   // debounce timer
+let isGeocodeFetching = false;
 
 const pinIcon = L.divIcon({
     className: '',
     html: `<div style="
-        width:20px;height:20px;border-radius:50%;
+        width:22px;height:22px;border-radius:50%;
         background:#d63230;border:3px solid white;
-        box-shadow:0 2px 10px rgba(214,50,48,0.5);
-        cursor:move;
+        box-shadow:0 2px 12px rgba(214,50,48,0.55);
+        cursor:move;transition:transform 0.15s;
     "></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    iconSize:   [22, 22],
+    iconAnchor: [11, 11],
 });
 
-miniMap.on('click', async (e) => {
+// ================================================================
+// MAP CLICK — always updates, always re-geocodes
+// ================================================================
+miniMap.on('click', (e) => {
     const { lat, lng } = e.latlng;
-    placePin(lat, lng);
-    await reverseGeocode(lat, lng);
+    setPin(lat, lng, true);   // true = trigger geocode
 });
 
-function placePin(lat, lng) {
-    if (pinMarker) miniMap.removeLayer(pinMarker);
+// ================================================================
+// SET PIN — place or move pin to lat/lng
+// ================================================================
+function setPin(lat, lng, geocode = true) {
+    // Remove old marker
+    if (pinMarker) {
+        miniMap.removeLayer(pinMarker);
+        pinMarker = null;
+    }
 
     pinMarker = L.marker([lat, lng], {
-        icon: pinIcon,
+        icon:      pinIcon,
         draggable: true,
     }).addTo(miniMap);
 
-    pinMarker.on('dragend', async () => {
-        const pos = pinMarker.getLatLng();
-        updateCoord(pos.lat, pos.lng);
-        await reverseGeocode(pos.lat, pos.lng);
+    // DRAG: update coords live, geocode on stop
+    pinMarker.on('drag', (e) => {
+        const p = e.latlng;
+        updateCoordDisplay(p.lat, p.lng);
+        // Show "updating..." hint while dragging
+        setGeocodeStatus('loading', 'Memperbarui posisi...');
     });
 
-    updateCoord(lat, lng);
+    pinMarker.on('dragend', (e) => {
+        const p = pinMarker.getLatLng();
+        commitCoord(p.lat, p.lng);
+        reverseGeocode(p.lat, p.lng);
+    });
+
     document.getElementById('miniMap').classList.add('has-pin');
+    commitCoord(lat, lng);
+
+    if (geocode) {
+        reverseGeocode(lat, lng);
+    }
 }
 
-function updateCoord(lat, lng) {
+// ================================================================
+// COMMIT COORD — write lat/lng to hidden fields + coord display
+// ================================================================
+function commitCoord(lat, lng) {
     document.getElementById('reportLat').value  = lat.toFixed(7);
     document.getElementById('reportLng').value  = lng.toFixed(7);
-    document.getElementById('coordDisplay').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    const hint = document.getElementById('coordHint');
-    hint.className = 'coord-hint has-coord';
-    hint.innerHTML = '<i class="fas fa-check-circle"></i> Lokasi dipilih. Geser pin jika perlu.';
+    updateCoordDisplay(lat, lng);
     hideError('errCoord');
 }
 
-async function reverseGeocode(lat, lng) {
-    try {
-        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=id`);
-        const data = await res.json();
-        if (data?.display_name) {
-            const addr = document.getElementById('reportAddress');
-            if (!addr.value.trim()) {
-                addr.value = data.display_name;
-                hideError('errAddress');
-            }
-        }
-    } catch { /* ignore */ }
+function updateCoordDisplay(lat, lng) {
+    document.getElementById('coordValue').textContent =
+        `${lat.toFixed(6)},  ${lng.toFixed(6)}`;
+
+    const hint = document.getElementById('coordHint');
+    hint.className = 'coord-hint has-coord';
+    hint.innerHTML = '<i class="fas fa-check-circle"></i> Lokasi dipilih — geser pin untuk koreksi';
 }
 
-// ===== VALIDATION =====
+// ================================================================
+// GEOCODE STATUS — shows loading/synced/error in both places
+// ================================================================
+function setGeocodeStatus(state, text) {
+    // Address field overlay status
+    const statusEl   = document.getElementById('addrStatus');
+    const iconEl     = document.getElementById('addrStatusIcon');
+    const textEl     = document.getElementById('addrStatusText');
+    const coordSub   = document.getElementById('coordGeocodeStatus');
+    const mapTip     = document.querySelector('.map-tip');
+
+    if (!statusEl) return;
+
+    if (state === 'hidden') {
+        statusEl.className = 'addr-status hidden';
+        if (coordSub) coordSub.textContent = '';
+        return;
+    }
+
+    statusEl.className = `addr-status ${state}`;
+    textEl.textContent = text;
+
+    if (state === 'loading') {
+        iconEl.className = 'fas fa-circle-notch spin';
+        if (coordSub) coordSub.innerHTML = `<span style="color:var(--accent);"><i class="fas fa-circle-notch" style="animation:spin 0.8s linear infinite;display:inline-block;"></i> Mencari alamat...</span>`;
+        if (mapTip)   mapTip.className = 'map-tip';
+    } else if (state === 'synced') {
+        iconEl.className = 'fas fa-check-circle';
+        if (coordSub) coordSub.innerHTML = `<span style="color:var(--success);"><i class="fas fa-check-circle"></i> Alamat diperbarui</span>`;
+        if (mapTip)   mapTip.className = 'map-tip synced';
+        if (mapTip)   mapTip.innerHTML = '<i class="fas fa-check-circle"></i> Alamat tersinkronisasi dengan lokasi peta';
+        // Auto-hide after 3s
+        setTimeout(() => {
+            setGeocodeStatus('hidden');
+            if (mapTip) {
+                mapTip.className = 'map-tip';
+                mapTip.innerHTML = '<i class="fas fa-info-circle"></i> Klik pada peta untuk menempatkan pin lokasi. Pin dapat digeser.';
+            }
+        }, 3000);
+    } else if (state === 'error') {
+        iconEl.className = 'fas fa-exclamation-circle';
+        if (coordSub) coordSub.innerHTML = `<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> ${text}</span>`;
+        if (mapTip)   mapTip.className = 'map-tip';
+    }
+}
+
+// ================================================================
+// REVERSE GEOCODE — always overwrites address, debounced, abortable
+// ================================================================
+async function reverseGeocode(lat, lng) {
+    // Cancel any in-flight request
+    if (geocodeAbort) {
+        geocodeAbort.abort();
+    }
+    // Cancel pending debounce
+    clearTimeout(geocodeTimer);
+
+    setGeocodeStatus('loading', 'Mencari alamat...');
+
+    // Debounce: wait 350ms before firing (prevents hammering while dragging)
+    geocodeTimer = setTimeout(async () => {
+        geocodeAbort = new AbortController();
+        const signal = geocodeAbort.signal;
+        isGeocodeFetching = true;
+
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse` +
+                `?lat=${lat.toFixed(7)}&lon=${lng.toFixed(7)}` +
+                `&format=json&accept-language=id&addressdetails=1&zoom=18`;
+
+            const res  = await fetch(url, {
+                signal,
+                headers: { 'User-Agent': 'WebGIS-PovertyMapping/2.0' },
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+
+            if (signal.aborted) return;   // superseded by newer request
+
+            const addr = buildAddress(data);
+
+            // ALWAYS update — this is the key fix:
+            // address always reflects the current pin position
+            const addrEl = document.getElementById('reportAddress');
+            addrEl.value = addr;
+            addrEl.style.borderColor = 'var(--success)';
+            setTimeout(() => { addrEl.style.borderColor = ''; }, 1800);
+
+            hideError('errAddress');
+            setGeocodeStatus('synced', 'Tersinkronisasi');
+
+        } catch (err) {
+            if (err.name === 'AbortError') return;  // intentionally cancelled
+
+            // Fallback: use raw coordinates as address placeholder
+            const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            const addrEl   = document.getElementById('reportAddress');
+
+            // Only replace with fallback if address is blank or already a coordinate
+            if (!addrEl.value.trim() || /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(addrEl.value.trim())) {
+                addrEl.value = fallback;
+            }
+
+            setGeocodeStatus('error', 'Gagal mengambil alamat');
+            console.warn('[Geocode] Error:', err.message);
+        } finally {
+            isGeocodeFetching = false;
+        }
+    }, 350);
+}
+
+// ================================================================
+// BUILD ADDRESS — construct human-readable address from Nominatim
+// ================================================================
+function buildAddress(data) {
+    if (!data) return '';
+
+    // Use display_name as primary source
+    if (data.display_name) {
+        return data.display_name;
+    }
+
+    // Fallback: construct from address components
+    if (data.address) {
+        const a = data.address;
+        const parts = [];
+        if (a.road)          parts.push(a.road);
+        if (a.house_number)  parts.push('No. ' + a.house_number);
+        if (a.quarter)       parts.push(a.quarter);
+        if (a.neighbourhood) parts.push(a.neighbourhood);
+        if (a.suburb)        parts.push(a.suburb);
+        if (a.village || a.town || a.municipality)
+            parts.push(a.village || a.town || a.municipality);
+        if (a.city || a.county)
+            parts.push(a.city || a.county);
+        if (a.state)         parts.push(a.state);
+        if (parts.length)    return parts.join(', ');
+    }
+
+    return '';
+}
+
+// ================================================================
+// VALIDATION
+// ================================================================
 function showError(id) { document.getElementById(id)?.classList.add('show'); }
 function hideError(id) { document.getElementById(id)?.classList.remove('show'); }
 
@@ -425,8 +633,16 @@ function validateForm() {
     return ok;
 }
 
-// ===== SUBMIT =====
+// ================================================================
+// SUBMIT
+// ================================================================
 async function submitReport() {
+    // If geocode is still in-flight, warn user
+    if (isGeocodeFetching) {
+        showToast('Alamat sedang diperbarui, harap tunggu sebentar.', 'success', 2000);
+        return;
+    }
+
     if (!validateForm()) {
         showToast('Periksa kembali isian yang belum lengkap.', 'error');
         return;
@@ -437,7 +653,7 @@ async function submitReport() {
     btn.innerHTML = '<i class="fas fa-circle-notch spinner"></i> Mengirim...';
 
     const body = {
-        reporter_name:  document.getElementById('reporterName').value.trim() || null,
+        reporter_name:  document.getElementById('reporterName').value.trim()  || null,
         reporter_phone: document.getElementById('reporterPhone').value.trim() || null,
         head_name:      document.getElementById('headName').value.trim(),
         address:        document.getElementById('reportAddress').value.trim(),
@@ -448,14 +664,14 @@ async function submitReport() {
 
     try {
         const res  = await fetch('api/public/report.php', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            body:    JSON.stringify(body),
         });
         const data = await res.json();
 
         if (data.success) {
-            document.getElementById('formWrap').style.display  = 'none';
+            document.getElementById('formWrap').style.display   = 'none';
             document.getElementById('successCard').style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } else if (res.status === 429) {
@@ -463,7 +679,7 @@ async function submitReport() {
         } else {
             showToast(data.message || 'Gagal mengirim laporan.', 'error');
         }
-    } catch (err) {
+    } catch {
         showToast('Koneksi gagal. Periksa internet Anda.', 'error');
     } finally {
         btn.disabled = false;
@@ -471,35 +687,58 @@ async function submitReport() {
     }
 }
 
-// ===== RESET =====
+// ================================================================
+// RESET
+// ================================================================
 function resetForm() {
-    document.getElementById('formWrap').style.display   = '';
-    document.getElementById('successCard').style.display = 'none';
-    document.getElementById('reporterName').value        = '';
-    document.getElementById('reporterPhone').value       = '';
-    document.getElementById('headName').value            = '';
-    document.getElementById('reportAddress').value       = '';
-    document.getElementById('reportDescription').value   = '';
-    document.getElementById('reportLat').value           = '';
-    document.getElementById('reportLng').value           = '';
-    document.getElementById('coordDisplay').textContent  = 'Belum dipilih';
+    // Cancel any pending geocode
+    if (geocodeAbort)  { geocodeAbort.abort(); geocodeAbort = null; }
+    clearTimeout(geocodeTimer);
+    isGeocodeFetching = false;
+
+    document.getElementById('formWrap').style.display    = '';
+    document.getElementById('successCard').style.display  = 'none';
+    document.getElementById('reporterName').value         = '';
+    document.getElementById('reporterPhone').value        = '';
+    document.getElementById('headName').value             = '';
+    document.getElementById('reportAddress').value        = '';
+    document.getElementById('reportAddress').style.borderColor = '';
+    document.getElementById('reportDescription').value    = '';
+    document.getElementById('reportLat').value            = '';
+    document.getElementById('reportLng').value            = '';
+    document.getElementById('coordValue').textContent     = 'Belum dipilih';
+    document.getElementById('coordGeocodeStatus').textContent = '';
+
     const hint = document.getElementById('coordHint');
     hint.className = 'coord-hint';
     hint.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Klik peta di sebelah kanan untuk menentukan lokasi rumah';
+
+    const mapTip = document.querySelector('.map-tip');
+    if (mapTip) {
+        mapTip.className = 'map-tip';
+        mapTip.innerHTML = '<i class="fas fa-info-circle"></i> Klik pada peta untuk menempatkan pin lokasi. Pin dapat digeser.';
+    }
+
     document.getElementById('miniMap').classList.remove('has-pin');
+    setGeocodeStatus('hidden');
+
     if (pinMarker) { miniMap.removeLayer(pinMarker); pinMarker = null; }
     ['errHeadName','errAddress','errDescription','errCoord'].forEach(hideError);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ===== TOAST =====
+// ================================================================
+// TOAST
+// ================================================================
 function showToast(msg, type = 'success', duration = 3000) {
     const el = document.getElementById('toast');
-    el.textContent = msg; el.className = 'toast ' + type; el.style.display = 'block';
+    el.textContent  = msg;
+    el.className    = 'toast ' + type;
+    el.style.display = 'block';
     setTimeout(() => { el.style.display = 'none'; }, duration);
 }
 
-// Resize map after layout
+// Resize map after layout renders
 setTimeout(() => miniMap.invalidateSize(), 300);
 </script>
 </body>
