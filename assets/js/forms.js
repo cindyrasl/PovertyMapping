@@ -154,7 +154,7 @@ function generateDependentFields() {
                 <div class="form-group">
                     <label>NIK</label>
                     <input type="text" class="dep-nik" id="dep_nik_${i}" maxlength="16" 
-                           placeholder="16 digit NIK (opsional)" 
+                           placeholder="16 digit NIK" 
                            value="${existingData[i]?.nik || ''}">
                 </div>
                 <div class="form-group">
@@ -216,7 +216,7 @@ function generateDependentFieldsFromData(data) {
                 <div class="form-group">
                     <label>NIK</label>
                     <input type="text" class="dep-nik" id="dep_nik_${i}" maxlength="16" 
-                           placeholder="16 digit NIK (opsional)"
+                           placeholder="16 digit NIK"
                            value="${dep.nik || ''}">
                 </div>
                 <div class="form-group">
