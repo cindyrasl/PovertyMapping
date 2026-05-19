@@ -28,8 +28,7 @@ switch ("$method:$action") {
         $offset = max(0, (int)($_GET['offset'] ?? 0));
 
         $stmt = $pdo->prepare("
-            SELECT ah.*, h.head_name, h.poverty_status,
-                rc.name AS center_name
+            SELECT ah.*, h.head_name, h.poverty_status, rc.name AS center_name
             FROM aid_history ah
             LEFT JOIN households h          ON h.id  = ah.household_id
             LEFT JOIN religious_centers rc  ON rc.id = ah.center_id
@@ -48,7 +47,6 @@ switch ("$method:$action") {
 
     case 'GET:show': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo  = Database::get();
         $stmt = $pdo->prepare("
             SELECT ah.*, h.head_name, rc.name AS center_name
@@ -93,8 +91,6 @@ switch ("$method:$action") {
         ]);
 
         $newId = (int)$pdo->lastInsertId();
-
-        // Flip aid_status
         $pdo->prepare("UPDATE households SET aid_status='received' WHERE id=?")
             ->execute([(int)$data['household_id']]);
 
@@ -105,7 +101,6 @@ switch ("$method:$action") {
 
     case 'POST:update': {
         if (!$id) Response::error('ID is required.', 400);
-
         $data = Validator::json();
         $v = Validator::make($data, [
             'aid_type' => 'required|in:sembako,pendanaan,pelatihan,sembako_pendanaan,sembako_pelatihan,pendanaan_pelatihan,lengkap',
@@ -124,9 +119,9 @@ switch ("$method:$action") {
             ->execute([
                 $data['aid_type'],
                 $data['aid_date'],
-                !empty($data['amount']) ? (int)$data['amount'] : null,
-                !empty($data['notes'])  ? Validator::sanitizeString($data['notes']) : null,
-                !empty($data['center_id']) ? (int)$data['center_id'] : null,
+                !empty($data['amount'])    ? (int)$data['amount']                         : null,
+                !empty($data['notes'])     ? Validator::sanitizeString($data['notes'])     : null,
+                !empty($data['center_id']) ? (int)$data['center_id']                      : null,
                 $id,
             ]);
 
@@ -137,13 +132,11 @@ switch ("$method:$action") {
 
     case 'POST:delete': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo = Database::get();
         $old = $pdo->prepare('SELECT * FROM aid_history WHERE id=?');
         $old->execute([$id]);
         $row = $old->fetch();
         if (!$row) Response::notFound('Aid record not found.');
-
         $pdo->prepare('DELETE FROM aid_history WHERE id=?')->execute([$id]);
         AuditLog::record('Hapus Bantuan', 'aid_history', $id, $row);
         Response::success(null, 'Bantuan dihapus.');
@@ -166,11 +159,12 @@ switch ("$method:$action") {
         ")->fetchAll();
 
         $total = (int)$pdo->query("SELECT COUNT(DISTINCT household_id) FROM aid_history")->fetchColumn();
+        $totalDist = (int)$pdo->query("SELECT COUNT(*) FROM aid_history")->fetchColumn();
 
         Response::success([
-            'by_type'  => $byType,
-            'monthly'  => array_reverse($monthly),
-            'summary'  => ['total_distributions' => (int)$pdo->query("SELECT COUNT(*) FROM aid_history")->fetchColumn(), 'total_households_aided' => $total],
+            'by_type' => $byType,
+            'monthly' => array_reverse($monthly),
+            'summary' => ['total_distributions' => $totalDist, 'total_households_aided' => $total],
         ]);
         break;
     }

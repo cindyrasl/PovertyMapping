@@ -1,6 +1,7 @@
 <?php
 // ============================================================
 // api/reports/index.php — Emergency Reports CRUD (no auth)
+// UI tabs removed; API kept for data integrity & popup access
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
@@ -51,7 +52,6 @@ switch ("$method:$action") {
 
     case 'GET:show': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo  = Database::get();
         $stmt = $pdo->prepare("
             SELECT er.*, h.head_name, h.address, h.latitude, h.longitude, h.nik,
@@ -79,40 +79,27 @@ switch ("$method:$action") {
         $v->validate_or_fail();
 
         $pdo = Database::get();
-        $hh  = $pdo->prepare('SELECT id, head_name FROM households WHERE id=? AND is_active=1');
+        $hh  = $pdo->prepare('SELECT id FROM households WHERE id=? AND is_active=1');
         $hh->execute([(int)$data['household_id']]);
         if (!$hh->fetch()) Response::notFound('Household not found.');
 
-        // Check for existing active report
         $existing = $pdo->prepare("
             SELECT id, type, status FROM emergency_reports
-            WHERE household_id = ? AND status IN ('open','in_progress')
-            LIMIT 1
+            WHERE household_id = ? AND status IN ('open','in_progress') LIMIT 1
         ");
         $existing->execute([(int)$data['household_id']]);
-        $activeReport = $existing->fetch();
-
-        if ($activeReport) {
-            $typeLabel = ['sakit'=>'Sakit','kecelakaan'=>'Kecelakaan','bencana'=>'Bencana',
-                          'kehilangan_pekerjaan'=>'Kehilangan Pekerjaan','kematian'=>'Kematian','lainnya'=>'Lainnya'];
+        $active = $existing->fetch();
+        if ($active) {
+            $lbl = ['sakit'=>'Sakit','kecelakaan'=>'Kecelakaan','bencana'=>'Bencana',
+                    'kehilangan_pekerjaan'=>'Kehilangan Pekerjaan','kematian'=>'Kematian','lainnya'=>'Lainnya'];
             Response::error(
-                'Rumah tangga ini sudah memiliki laporan aktif: ' .
-                ($typeLabel[$activeReport['type']] ?? $activeReport['type']) .
-                '. Selesaikan laporan yang ada terlebih dahulu.',
+                'Sudah ada laporan aktif: ' . ($lbl[$active['type']] ?? $active['type']) . '. Selesaikan dulu.',
                 409
             );
         }
 
-        $stmt = $pdo->prepare("
-            INSERT INTO emergency_reports (household_id, type, severity, description, status)
-            VALUES (?,?,?,?,'open')
-        ");
-        $stmt->execute([
-            (int)$data['household_id'],
-            $data['type'],
-            $data['severity'],
-            Validator::sanitizeString($data['description']),
-        ]);
+        $pdo->prepare("INSERT INTO emergency_reports (household_id, type, severity, description, status) VALUES (?,?,?,?,'open')")
+            ->execute([(int)$data['household_id'], $data['type'], $data['severity'], Validator::sanitizeString($data['description'])]);
 
         $newId = (int)$pdo->lastInsertId();
         AuditLog::record('Tambah Laporan Darurat', 'emergency_reports', $newId, null, $data);
@@ -122,14 +109,11 @@ switch ("$method:$action") {
 
     case 'POST:update': {
         if (!$id) Response::error('ID is required.', 400);
-
         $data = Validator::json();
-        $v = Validator::make($data, [
+        Validator::make($data, [
             'status'   => 'required|in:open,in_progress,resolved,closed',
             'severity' => 'in:ringan,sedang,berat,kritis',
-            'description' => 'string',
-        ]);
-        $v->validate_or_fail();
+        ])->validate_or_fail();
 
         $pdo = Database::get();
         $old = $pdo->prepare('SELECT * FROM emergency_reports WHERE id=?');
@@ -139,17 +123,12 @@ switch ("$method:$action") {
 
         $fields = ['status = ?'];
         $params = [$data['status']];
-
-        if (!empty($data['severity']))    { $fields[] = 'severity = ?';    $params[] = $data['severity'];    }
+        if (!empty($data['severity']))    { $fields[] = 'severity = ?';    $params[] = $data['severity']; }
         if (!empty($data['description'])) { $fields[] = 'description = ?'; $params[] = Validator::sanitizeString($data['description']); }
-
-        if (in_array($data['status'], ['resolved','closed']) && !$oldRow['resolved_at']) {
-            $fields[] = 'resolved_at = NOW()';
-        }
-
+        if (in_array($data['status'], ['resolved','closed']) && !$oldRow['resolved_at']) { $fields[] = 'resolved_at = NOW()'; }
         $params[] = $id;
-        $pdo->prepare('UPDATE emergency_reports SET ' . implode(', ', $fields) . ' WHERE id=?')->execute($params);
 
+        $pdo->prepare('UPDATE emergency_reports SET ' . implode(', ', $fields) . ' WHERE id=?')->execute($params);
         AuditLog::record('Update Laporan Darurat', 'emergency_reports', $id, $oldRow, $data);
         Response::success(['id' => $id], 'Laporan diperbarui.');
         break;
@@ -158,11 +137,7 @@ switch ("$method:$action") {
     case 'POST:resolve': {
         if (!$id) Response::error('ID is required.', 400);
         $pdo  = Database::get();
-        $stmt = $pdo->prepare("
-            UPDATE emergency_reports
-            SET status='resolved', resolved_at=NOW()
-            WHERE id=? AND status NOT IN ('resolved','closed')
-        ");
+        $stmt = $pdo->prepare("UPDATE emergency_reports SET status='resolved', resolved_at=NOW() WHERE id=? AND status NOT IN ('resolved','closed')");
         $stmt->execute([$id]);
         if ($stmt->rowCount() === 0) Response::error('Report not found or already resolved.', 409);
         AuditLog::record('Selesaikan Laporan', 'emergency_reports', $id);

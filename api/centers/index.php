@@ -14,7 +14,6 @@ switch ("$method:$action") {
     case 'GET:list':
     case 'GET:': {
         $pdo = Database::get();
-
         $where  = ['rc.is_active = 1'];
         $params = [];
 
@@ -62,17 +61,14 @@ switch ("$method:$action") {
 
     case 'GET:show': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo  = Database::get();
         $stmt = $pdo->prepare("SELECT rc.* FROM religious_centers rc WHERE rc.id = ? AND rc.is_active = 1");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         if (!$row) Response::notFound('Religious center not found.');
-
         $row['latitude']  = (float)$row['latitude'];
         $row['longitude'] = (float)$row['longitude'];
         $row['radius']    = (int)$row['radius'];
-
         Response::success($row);
         break;
     }
@@ -81,7 +77,6 @@ switch ("$method:$action") {
         $lat = (float)($_GET['lat'] ?? 0);
         $lng = (float)($_GET['lng'] ?? 0);
         $km  = min(50, (float)($_GET['km'] ?? 5));
-
         if ($lat === 0.0 && $lng === 0.0) Response::error('lat and lng are required.', 400);
 
         $pdo  = Database::get();
@@ -99,41 +94,47 @@ switch ("$method:$action") {
         ");
         $stmt->execute([$lat, $lng, $lat, $km]);
         $rows = $stmt->fetchAll();
-
         foreach ($rows as &$r) {
             $r['latitude']    = (float)$r['latitude'];
             $r['longitude']   = (float)$r['longitude'];
             $r['distance_km'] = round((float)$r['distance_km'], 3);
         }
         unset($r);
-
         Response::success(['centers' => $rows]);
         break;
     }
 
     case 'GET:coverage': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo    = Database::get();
         $center = $pdo->prepare('SELECT * FROM religious_centers WHERE id=? AND is_active=1');
         $center->execute([$id]);
         $c = $center->fetch();
         if (!$c) Response::notFound('Religious center not found.');
 
+        // FIX: Use subquery for distance calc (MariaDB HAVING-alias compat)
         $stmt = $pdo->prepare("
-            SELECT h.id, h.head_name, h.latitude, h.longitude,
-                   h.poverty_status, h.aid_status, h.dependents,
-                   (6371000 * ACOS(
-                       COS(RADIANS(?)) * COS(RADIANS(h.latitude)) *
-                       COS(RADIANS(h.longitude) - RADIANS(?)) +
-                       SIN(RADIANS(?)) * SIN(RADIANS(h.latitude))
-                   )) AS distance_m
-            FROM households h
-            WHERE h.is_active = 1
-            HAVING distance_m <= ?
-            ORDER BY distance_m
+            SELECT sub.*
+            FROM (
+                SELECT h.id, h.head_name, h.latitude, h.longitude,
+                       h.poverty_status, h.aid_status, h.dependents,
+                       (6371000 * ACOS(
+                           COS(RADIANS(:lat1)) * COS(RADIANS(h.latitude)) *
+                           COS(RADIANS(h.longitude) - RADIANS(:lng)) +
+                           SIN(RADIANS(:lat2)) * SIN(RADIANS(h.latitude))
+                       )) AS distance_m
+                FROM households h
+                WHERE h.is_active = 1
+            ) sub
+            WHERE sub.distance_m <= :radius
+            ORDER BY sub.distance_m
         ");
-        $stmt->execute([(float)$c['latitude'], (float)$c['longitude'], (float)$c['latitude'], (float)$c['radius']]);
+        $stmt->execute([
+            ':lat1'   => (float)$c['latitude'],
+            ':lng'    => (float)$c['longitude'],
+            ':lat2'   => (float)$c['latitude'],
+            ':radius' => (float)$c['radius'],
+        ]);
         $households = $stmt->fetchAll();
 
         foreach ($households as &$h) {
@@ -230,19 +231,16 @@ switch ("$method:$action") {
 
     case 'POST:patch': {
         if (!$id) Response::error('ID is required.', 400);
-
         $data   = Validator::json();
         $fields = [];
         $params = [];
 
         if (isset($data['radius'])) {
-            $v = Validator::make($data, ['radius' => 'required|integer|min:50|max:5000']);
-            $v->validate_or_fail();
+            Validator::make($data, ['radius' => 'required|integer|min:50|max:5000'])->validate_or_fail();
             $fields[] = 'radius = ?'; $params[] = (int)$data['radius'];
         }
         if (isset($data['latitude'], $data['longitude'])) {
-            $v = Validator::make($data, ['latitude'=>'required|latitude','longitude'=>'required|longitude']);
-            $v->validate_or_fail();
+            Validator::make($data, ['latitude'=>'required|latitude','longitude'=>'required|longitude'])->validate_or_fail();
             $fields[] = 'latitude = ?';  $params[] = (float)$data['latitude'];
             $fields[] = 'longitude = ?'; $params[] = (float)$data['longitude'];
             if (!empty($data['address'])) { $fields[] = 'address = ?'; $params[] = Validator::sanitizeString($data['address']); }
@@ -261,11 +259,9 @@ switch ("$method:$action") {
 
     case 'POST:delete': {
         if (!$id) Response::error('ID is required.', 400);
-
         $pdo  = Database::get();
         $stmt = $pdo->prepare('UPDATE religious_centers SET is_active=0 WHERE id=? AND is_active=1');
         $stmt->execute([$id]);
-
         if ($stmt->rowCount() === 0) Response::notFound('Religious center not found.');
         AuditLog::record('Hapus Tempat Ibadah', 'religious_centers', $id);
         Response::success(null, 'Tempat ibadah dihapus.');

@@ -37,10 +37,11 @@ async function loadCenters() {
 
 async function loadHouses() {
     const params = {};
-    if (State.povertyFilter)   params.poverty_status   = State.povertyFilter;
-    if (State.aidFilter)       params.aid_status       = State.aidFilter;
-    if (State.searchQuery)     params.q                = State.searchQuery;
-    if (State.conditionFilter) params.house_condition  = State.conditionFilter;
+    if (State.povertyFilter)   params.poverty_status  = State.povertyFilter;
+    if (State.aidFilter)       params.aid_status      = State.aidFilter;
+    if (State.searchQuery)     params.q               = State.searchQuery;
+    if (State.conditionFilter) params.house_condition = State.conditionFilter;
+    if (State.ageFilter)       params.age_category    = State.ageFilter;
 
     const r = await ApiHouses.list({ ...params, limit: 500 });
     if (r.ok && r.data?.success) {
@@ -60,8 +61,12 @@ async function loadStats() {
     animateCount('statHouses',     d.households);
     animateCount('statPopulation', d.population);
     animateCount('statAided',      d.aid_received);
-    animateCount('statReports',    d.open_reports);
+    animateCount('statPending',    d.pending_public ?? 0);
 }
+
+// Export for public-reports.js
+window.loadAllData = loadAllData;
+window.loadStats   = loadStats;
 
 function animateCount(id, target) {
     const el = document.getElementById(id);
@@ -136,6 +141,11 @@ function initFilters() {
         loadHouses();
     });
 
+    document.getElementById('filterAge')?.addEventListener('change', function () {
+        State.ageFilter = this.value;
+        loadHouses();
+    });
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', debounce(async (e) => {
@@ -198,6 +208,3 @@ document.addEventListener('keydown', (e) => {
         loadAllData().then(() => showToast('Data diperbarui.', 'success'));
     }
 });
-// ---- Export loadAllData for public-reports.js to call -----
-window.loadAllData = loadAllData;
-window.loadStats   = loadStats;

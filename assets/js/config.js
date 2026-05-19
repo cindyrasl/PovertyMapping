@@ -82,6 +82,7 @@ const State = {
     povertyFilter: '',
     aidFilter:     '',
     conditionFilter: '',
+    ageFilter:     '',
     searchQuery:   '',
     centers:    [],
     houses:     [],

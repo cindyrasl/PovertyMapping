@@ -139,7 +139,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
 /* ===== MINI MAP ===== */
 #miniMap {
-    width: 100%; height: 320px; border-radius: var(--r-lg);
+    width: 100%; height: 400px; border-radius: var(--r-lg);
     border: 2px solid var(--border); cursor: crosshair;
     transition: border-color 0.2s;
 }
@@ -219,7 +219,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
             <h1>Laporkan Warga Membutuhkan</h1>
             <p>Bantu kami mendata warga yang belum terdata dan membutuhkan bantuan</p>
         </div>
-        <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Peta</a>
+        <a href="admin.html" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Admin</a>
     </div>
 
     <!-- Success state (hidden initially) -->
@@ -332,7 +332,7 @@ const miniMap = L.map('miniMap', {
 });
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
 }).addTo(miniMap);
 

@@ -802,41 +802,8 @@ document.getElementById('addAidBtn')?.addEventListener('click', () => {
     if (hhId) openAidModalForHouse(hhId);
 });
 
-// ====================================================================
-// EMERGENCY REPORT MODAL
-// ====================================================================
+// Emergency report modal removed — reporting now handled via lapor.html
+// openReportModal is kept as a no-op to prevent JS errors from any stale references
 function openReportModal(householdId) {
-    MAP.closePopup();
-    document.getElementById('reportHouseholdId').value = householdId;
-    document.getElementById('reportType').value        = 'sakit';
-    document.getElementById('reportSeverity').value    = 'sedang';
-    document.getElementById('reportDescription').value = '';
-    openModal('reportModal');
+    showToast('Gunakan halaman lapor.html untuk melaporkan warga.', 'success', 3000);
 }
-
-document.getElementById('reportForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const body = {
-        household_id: parseInt(document.getElementById('reportHouseholdId').value),
-        type:         document.getElementById('reportType').value,
-        severity:     document.getElementById('reportSeverity').value,
-        description:  document.getElementById('reportDescription').value.trim(),
-    };
-
-    if (!body.description) { showToast('Deskripsi laporan wajib diisi.', 'error'); return; }
-
-    showLoading(true);
-    const r = await ApiReports.create(body);
-    showLoading(false);
-
-    if (r.ok && r.data?.success) {
-        closeModal('reportModal');
-        showToast('Laporan darurat berhasil dikirim.', 'success');
-        await loadStats();
-    } else {
-        showToast(r.data?.message || 'Gagal mengirim laporan.', 'error');
-    }
-    return false;
-});
