@@ -115,31 +115,32 @@ function showCenterPopup(marker, center) {
         .setLatLng(marker.getLatLng())
         .setContent(`
         <div class="popup-info">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #edf0f6;">
-                <div style="width:32px;height:32px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #edf0f6;">
+                <div style="width:34px;height:34px;border-radius:9px;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0;box-shadow:0 2px 8px ${color}44;">
                     <i class="fas ${icon}"></i>
                 </div>
                 <div>
-                    <strong style="font-size:13px;color:#0f1623;">${center.name}</strong>
-                    <div style="font-size:10.5px;color:#9ba4b5;">${label} · <em>seret untuk pindahkan</em></div>
+                    <div class="popup-name" style="margin-bottom:0;">${center.name}</div>
+                    <div style="font-size:10px;color:var(--text-muted);">${label} · <em style="font-size:9px;">seret untuk pindahkan</em></div>
                 </div>
             </div>
-            <p><i class="fas fa-map-marker-alt"></i>${truncate(center.address || '—', 40)}</p>
-            <p><i class="fas fa-ruler-combined"></i>Radius: <strong>${center.radius}m</strong></p>
-            <p><i class="fas fa-home"></i>Rumah dalam radius: <strong>${center.household_count ?? '—'}</strong></p>
-            <div class="radius-control">
-                <label>Ubah Radius: <strong id="rcVal_${center.id}">${center.radius}m</strong></label>
-                <div class="slider-container" style="margin-top:5px;">
+            <div class="popup-row"><i class="fas fa-map-marker-alt"></i><span>${truncate(center.address || '—', 42)}</span></div>
+            <div class="popup-row"><i class="fas fa-home"></i><span>Rumah dalam radius: <strong>${center.household_count ?? 0}</strong></span></div>
+            ${center.contact_person ? `<div class="popup-row"><i class="fas fa-user"></i><span>${center.contact_person}${center.contact_phone ? ' · ' + center.contact_phone : ''}</span></div>` : ''}
+            <div class="popup-section">
+                <div class="popup-section-label"><i class="fas fa-dot-circle"></i> Ubah Radius: <strong id="rcVal_${center.id}" style="color:${color};">${center.radius}m</strong></div>
+                <div style="display:flex;align-items:center;gap:8px;">
                     <input type="range" min="50" max="5000" step="10" value="${center.radius}"
                         oninput="liveUpdateRadius(${center.id}, this.value)"
-                        onchange="saveRadius(${center.id}, this.value)">
+                        onchange="saveRadius(${center.id}, this.value)"
+                        style="flex:1;height:4px;-webkit-appearance:none;background:#e2e6ef;border-radius:2px;outline:none;border:none;padding:0;accent-color:${color};">
                 </div>
-                <div class="radius-ticks"><span>50m</span><span>2.5km</span><span>5km</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:9px;color:#9ba4b5;margin-top:3px;"><span>50m</span><span>2.5km</span><span>5km</span></div>
             </div>
             <div class="popup-actions">
                 <button class="btn btn-primary btn-sm" onclick="editCenter(${center.id})"><i class="fas fa-pen"></i> Edit</button>
                 <button class="btn btn-secondary btn-sm" onclick="showCoverageHouseholds(${center.id})"><i class="fas fa-eye"></i> Lihat Rumah</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteCenter(${center.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteCenter(${center.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`);
 
@@ -411,38 +412,36 @@ function updateAllHouseColors() {
 
 function showHousePopup(marker, h) {
     const insideRadius = isHouseInsideAnyRadius(h.latitude, h.longitude);
-    const radiusColor = insideRadius ? '#d63230' : '#0b9e73';
-    const radiusText = insideRadius ? 'Dalam Radius' : 'Luar Radius';
-    const povColor = POVERTY_COLORS[h.poverty_status] || '#9ba4b5';
-    const povLabel = POVERTY_LABELS[h.poverty_status] || h.poverty_status;
+    const radiusColor  = insideRadius ? '#d63230' : '#0b9e73';
+    const radiusText   = insideRadius ? 'Dalam Radius' : 'Luar Radius';
+    const povColor     = POVERTY_COLORS[h.poverty_status] || '#9ba4b5';
+    const povLabel     = POVERTY_LABELS[h.poverty_status] || h.poverty_status;
+    const condLabel    = h.house_condition === 'tidak_layak' ? 'Tidak Layak' : 'Layak';
+    const condColor    = h.house_condition === 'tidak_layak' ? '#d63230' : '#0b9e73';
+    const aidLabel     = h.aid_status === 'received' ? 'Sudah Dibantu' : 'Belum Dibantu';
+    const aidColor     = h.aid_status === 'received' ? '#0b9e73' : '#d97706';
 
     const popup = L.popup({ maxWidth: 300, closeButton: true })
         .setLatLng(marker.getLatLng())
         .setContent(`
         <div class="popup-info">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #edf0f6;">
-                <div>
-                    <strong style="font-size:13.5px;color:#0f1623;">${h.head_name}</strong>
-                    <div style="font-size:9px;color:var(--text-muted);">seret untuk pindahkan</div>
-                </div>
+            <div class="popup-name">${h.head_name}</div>
+            <div class="popup-hint"><i class="fas fa-arrows-alt" style="font-size:8px;"></i> Seret marker untuk pindahkan</div>
+            <div class="popup-badges">
+                <span class="popup-badge" style="background:${povColor}15;color:${povColor};">● ${povLabel}</span>
+                <span class="popup-badge" style="background:${radiusColor}15;color:${radiusColor};">○ ${radiusText}</span>
+                <span class="popup-badge" style="background:${condColor}15;color:${condColor};">${condLabel}</span>
+                <span class="popup-badge" style="background:${aidColor}15;color:${aidColor};">${aidLabel}</span>
             </div>
-            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-                <span style="padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${povColor}15;color:${povColor};white-space:nowrap;">
-                    ● ${povLabel}
-                </span>
-                <span style="padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:${radiusColor}15;color:${radiusColor};white-space:nowrap;">
-                    ○ ${radiusText}
-                </span>
-            </div>
-            <p><i class="fas fa-map-marker-alt"></i>${truncate(h.address || '—', 42)}</p>
-            <p><i class="fas fa-id-card"></i>NIK: <strong>${h.nik || '—'}</strong></p>
-            <p><i class="fas fa-users"></i>Anggota: <strong>${h.dependents}</strong> orang | Pendapatan: <strong>${formatRp(h.income)}/bln</strong></p>
-            ${h.center_name ? `<p><i class="fas fa-place-of-worship"></i>Pusat: ${h.center_name}</p>` : ''}
+            <div class="popup-row"><i class="fas fa-id-card"></i><span>NIK: <strong>${h.nik || '—'}</strong></span></div>
+            <div class="popup-row"><i class="fas fa-map-marker-alt"></i><span>${truncate(h.address || '—', 45)}</span></div>
+            <div class="popup-row"><i class="fas fa-users"></i><span>Anggota: <strong>${h.dependents}</strong> orang</span></div>
+            <div class="popup-row"><i class="fas fa-money-bill-wave"></i><span>Pendapatan: <strong>${formatRp(h.income)}/bln</strong></span></div>
+            ${h.center_name ? `<div class="popup-row"><i class="fas fa-place-of-worship"></i><span>Pusat: <strong>${h.center_name}</strong></span></div>` : ''}
             <div class="popup-actions">
                 <button class="btn btn-primary btn-sm" onclick="editHouse(${h.id})"><i class="fas fa-pen"></i> Edit</button>
-                <button class="btn btn-secondary btn-sm" onclick="openReportModal(${h.id})"><i class="fas fa-exclamation-triangle"></i> Laporan</button>
                 <button class="btn btn-success btn-sm" onclick="openAidModalForHouse(${h.id})"><i class="fas fa-gift"></i> Bantuan</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteHouse(${h.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteHouse(${h.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`);
 
@@ -488,7 +487,7 @@ function renderCenterList() {
             </div>
             <div class="data-item-actions">
                 <button class="btn-edit" title="Edit" onclick="event.stopPropagation();editCenter(${c.id})"><i class="fas fa-pen"></i></button>
-                <button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteCenter(${c.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteCenter(${c.id})"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -525,7 +524,7 @@ function renderHouseList(filtered) {
             </div>
             <div class="data-item-actions">
                 <button class="btn-edit" title="Edit" onclick="event.stopPropagation();editHouse(${h.id})"><i class="fas fa-pen"></i></button>
-                <button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteHouse(${h.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteHouse(${h.id})"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');

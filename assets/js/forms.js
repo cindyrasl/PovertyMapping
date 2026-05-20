@@ -154,7 +154,7 @@ function generateDependentFields() {
                 <div class="form-group">
                     <label>NIK</label>
                     <input type="text" class="dep-nik" id="dep_nik_${i}" maxlength="16" 
-                           placeholder="16 digit NIK (opsional)" 
+                           placeholder="16 digit NIK" 
                            value="${existingData[i]?.nik || ''}">
                 </div>
                 <div class="form-group">
@@ -216,7 +216,7 @@ function generateDependentFieldsFromData(data) {
                 <div class="form-group">
                     <label>NIK</label>
                     <input type="text" class="dep-nik" id="dep_nik_${i}" maxlength="16" 
-                           placeholder="16 digit NIK (opsional)"
+                           placeholder="16 digit NIK"
                            value="${dep.nik || ''}">
                 </div>
                 <div class="form-group">
@@ -415,6 +415,10 @@ async function editCenter(id) {
 }
 
 async function deleteCenter(id) {
+    if (!window.canDelete) {
+        showToast('Anda tidak memiliki izin untuk menghapus data.', 'error');
+        return;
+    }
     if (!confirm('Hapus tempat ibadah ini? Semua data terkait akan dihapus.')) return;
     showLoading(true);
     const r = await ApiCenters.delete(id);
@@ -499,7 +503,7 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
     document.getElementById('addAidBtn').style.display = '';
 
     // Load dependents
-    currentDependents = h.dependents_data || [];
+    currentDependents = h.household_members || [];
     generateDependentFieldsFromData(currentDependents);
 
     recalcPoverty();
@@ -685,7 +689,7 @@ document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
         longitude:      lng,
         description:    document.getElementById('houseDescription').value.trim(),
         aid_status:     document.getElementById('houseAidStatus').value,
-        dependents_data: dependentsData,
+        household_members: dependentsData,
     };
 
     console.log('Sending payload:', JSON.stringify(body, null, 2)); // Debug log
@@ -725,6 +729,10 @@ async function editHouse(id) {
 }
 
 async function deleteHouse(id) {
+    if (!window.canDelete) {
+        showToast('Anda tidak memiliki izin untuk menghapus data.', 'error');
+        return;
+    }
     if (!confirm('Hapus data rumah ini? Semua data terkait akan dihapus.')) return;
     showLoading(true);
     const r = await ApiHouses.delete(id);
@@ -802,41 +810,8 @@ document.getElementById('addAidBtn')?.addEventListener('click', () => {
     if (hhId) openAidModalForHouse(hhId);
 });
 
-// ====================================================================
-// EMERGENCY REPORT MODAL
-// ====================================================================
+// Emergency report modal removed — reporting now handled via lapor.html
+// openReportModal is kept as a no-op to prevent JS errors from any stale references
 function openReportModal(householdId) {
-    MAP.closePopup();
-    document.getElementById('reportHouseholdId').value = householdId;
-    document.getElementById('reportType').value        = 'sakit';
-    document.getElementById('reportSeverity').value    = 'sedang';
-    document.getElementById('reportDescription').value = '';
-    openModal('reportModal');
+    showToast('Gunakan halaman lapor.html untuk melaporkan warga.', 'success', 3000);
 }
-
-document.getElementById('reportForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const body = {
-        household_id: parseInt(document.getElementById('reportHouseholdId').value),
-        type:         document.getElementById('reportType').value,
-        severity:     document.getElementById('reportSeverity').value,
-        description:  document.getElementById('reportDescription').value.trim(),
-    };
-
-    if (!body.description) { showToast('Deskripsi laporan wajib diisi.', 'error'); return; }
-
-    showLoading(true);
-    const r = await ApiReports.create(body);
-    showLoading(false);
-
-    if (r.ok && r.data?.success) {
-        closeModal('reportModal');
-        showToast('Laporan darurat berhasil dikirim.', 'success');
-        await loadStats();
-    } else {
-        showToast(r.data?.message || 'Gagal mengirim laporan.', 'error');
-    }
-    return false;
-});
