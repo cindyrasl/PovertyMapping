@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WebGIS Admin — Manajemen Data</title>
+<title>WebGIS Dashboard — Manajemen Data</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,22 +44,6 @@
     display: inline-block; vertical-align: middle;
 }
 .pending-badge:empty { display: none; }
-
-/* Admin page nav link */
-.admin-top-bar {
-    position: absolute; top: 10px; left: 50%;
-    transform: translateX(-50%); z-index: 1001;
-    display: flex; gap: 8px; align-items: center;
-}
-.admin-top-bar a {
-    padding: 5px 12px; border-radius: 20px;
-    font-size: 11px; font-weight: 600; text-decoration: none;
-    background: rgba(255,255,255,0.92); border: 1px solid var(--border);
-    color: var(--text-secondary); display: flex; align-items: center; gap: 5px;
-    box-shadow: var(--shadow-sm); transition: all 0.14s;
-}
-.admin-top-bar a:hover { background: var(--accent-light); color: var(--accent); }
-.admin-top-bar .current { background: var(--accent); color: white; border-color: var(--accent); }
 
 /* Approve/reject action buttons */
 .btn-approve { background: var(--success); color: white; }
@@ -110,15 +94,25 @@
 /* Admin-only: single tab panel without tab bar */
 .admin-tab-panel.active { display: block; }
 .admin-tab-panel { display: none; }
+
+/* Logout button */
+.logout-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 10px;
+    border-radius: 6px;
+    transition: all 0.14s;
+}
+.logout-btn:hover {
+    background-color: rgba(214,50,48,0.1);
+}
 </style>
 </head>
 <body>
-
-<!-- Admin top bar -->
-<div class="admin-top-bar">
-    <a href="admin.html" class="current"><i class="fas fa-cog"></i> Admin</a>
-    <a href="lapor.html" target="_blank"><i class="fas fa-flag"></i> Form Laporan Publik</a>
-</div>
 
 <!-- ===== MAP ===== -->
 <div id="map"></div>
@@ -128,12 +122,15 @@
     <div class="sidebar-header">
         <div class="sidebar-logo"><i class="fas fa-map-marked-alt"></i></div>
         <div class="sidebar-title">
-            <h1>WebGIS Dashboard</h1>
-            <p>Tempat Ibadah &amp; Kemiskinan</p>
+            <h1>Dashboard</h1>
+            <p>Poverty Mapping</p>
         </div>
-        <div style="margin-left:auto;">
+                <div style="margin-left:auto; display:flex; align-items:center; gap:2px;">
             <button class="btn-admin-panel" onclick="openAdminPanel()" style="margin:0;padding:6px 12px;font-size:11px;">
-                <i class="fas fa-cog"></i> Admin
+                <i class="fas fa-cog"></i> Laporan Publik
+            </button>
+            <button class="logout-btn" onclick="logout()" title="Logout" style="background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer; padding:5px; border-radius:6px;">
+                <i class="fas fa-sign-out-alt"></i>
             </button>
         </div>
     </div>
@@ -189,39 +186,6 @@
                 <button class="filter-btn active" data-filter="all">Semua</button>
                 <button class="filter-btn" data-filter="centers">Ibadah</button>
                 <button class="filter-btn" data-filter="houses">Rumah</button>
-            </div>
-        </div>
-
-        <!-- Sub-filters -->
-        <div class="subfilter-section" id="houseSubFilters">
-            <div class="filter-row">
-                <select id="filterPoverty" class="subfilter-select">
-                    <option value="">Semua Status</option>
-                    <option value="sangat_miskin">Sangat Miskin</option>
-                    <option value="miskin">Miskin</option>
-                    <option value="rentan_miskin">Rentan Miskin</option>
-                    <option value="terdata">Terdata</option>
-                </select>
-                <select id="filterAid" class="subfilter-select">
-                    <option value="">Semua Bantuan</option>
-                    <option value="not_yet">Belum Terima</option>
-                    <option value="received">Sudah Terima</option>
-                </select>
-            </div>
-            <div class="filter-row">
-                <select id="filterAge" class="subfilter-select">
-                    <option value="">Semua Usia</option>
-                    <option value="anak">Anak (&lt;12)</option>
-                    <option value="remaja">Remaja (12–17)</option>
-                    <option value="pemuda">Pemuda (18–30)</option>
-                    <option value="dewasa">Dewasa (31–59)</option>
-                    <option value="lansia">Lansia (60+)</option>
-                </select>
-                <select id="filterCondition" class="subfilter-select">
-                    <option value="">Semua Kondisi</option>
-                    <option value="tidak_layak">Tidak Layak</option>
-                    <option value="layak">Layak</option>
-                </select>
             </div>
         </div>
 
@@ -577,7 +541,7 @@
 <div class="modal-overlay" id="adminModal">
 <div class="modal" style="max-width:750px;">
     <div class="modal-header">
-        <h2><i class="fas fa-cog"></i> Panel Admin</h2>
+        <h2><i class="fas fa-cog"></i> Laporan Publik</h2>
         <span class="modal-close" onclick="closeModal('adminModal')">&times;</span>
     </div>
     <div class="admin-tabs">
@@ -762,12 +726,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
 <script src="assets/js/map.js"></script>
 <script src="assets/js/markers.js"></script>
 <script src="assets/js/forms.js"></script>
 <script src="assets/js/dashboard.js"></script>
 <script src="assets/js/admin.js"></script>
-<script src="assets/js/app.js"></script>
 <script src="assets/js/public-reports.js"></script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

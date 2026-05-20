@@ -140,7 +140,7 @@ function showCenterPopup(marker, center) {
             <div class="popup-actions">
                 <button class="btn btn-primary btn-sm" onclick="editCenter(${center.id})"><i class="fas fa-pen"></i> Edit</button>
                 <button class="btn btn-secondary btn-sm" onclick="showCoverageHouseholds(${center.id})"><i class="fas fa-eye"></i> Lihat Rumah</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteCenter(${center.id})" title="Hapus"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteCenter(${center.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`);
 
@@ -441,7 +441,7 @@ function showHousePopup(marker, h) {
             <div class="popup-actions">
                 <button class="btn btn-primary btn-sm" onclick="editHouse(${h.id})"><i class="fas fa-pen"></i> Edit</button>
                 <button class="btn btn-success btn-sm" onclick="openAidModalForHouse(${h.id})"><i class="fas fa-gift"></i> Bantuan</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteHouse(${h.id})" title="Hapus"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteHouse(${h.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`);
 
@@ -487,7 +487,7 @@ function renderCenterList() {
             </div>
             <div class="data-item-actions">
                 <button class="btn-edit" title="Edit" onclick="event.stopPropagation();editCenter(${c.id})"><i class="fas fa-pen"></i></button>
-                <button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteCenter(${c.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteCenter(${c.id})"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -524,7 +524,7 @@ function renderHouseList(filtered) {
             </div>
             <div class="data-item-actions">
                 <button class="btn-edit" title="Edit" onclick="event.stopPropagation();editHouse(${h.id})"><i class="fas fa-pen"></i></button>
-                <button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteHouse(${h.id})"><i class="fas fa-trash"></i></button>
+                ${window.canDelete ? `<button class="btn-delete" title="Hapus" onclick="event.stopPropagation();deleteHouse(${h.id})"><i class="fas fa-trash"></i></button>` : ''}
             </div>
         </div>`;
     }).join('');

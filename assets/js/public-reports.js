@@ -14,9 +14,16 @@ const ApiPublicReports = {
         return Http.request('api/public/report.php?action=list' + (qs ? '&' + qs : ''), { method: 'GET' });
     },
     async approve(id, body = {}) {
+        // Menambahkan verified_by ke body untuk audit
+        if (window.currentUserName) {
+            body.verified_by = window.currentUserName;
+        }
         return Http.post(`api/public/report.php?action=approve&id=${id}`, body);
     },
     async reject(id, body = {}) {
+        if (window.currentUserName) {
+            body.rejected_by = window.currentUserName;
+        }
         return Http.post(`api/public/report.php?action=reject&id=${id}`, body);
     },
     async delete(id) {

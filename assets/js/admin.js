@@ -1,6 +1,5 @@
 /* ============================================================
-   admin.js — Admin panel: public reports only
-   Emergency reports / audit log / users tabs removed
+   admin.js — Admin panel: public reports (now accessible to Field Officers)
    ============================================================ */
 'use strict';
 
@@ -21,7 +20,7 @@ async function updatePendingBadge() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Status filter change
+    // Status filter change - tetap tersedia untuk semua role
     document.getElementById('pendingStatusFilter')
         ?.addEventListener('change', loadPendingReports);
 
