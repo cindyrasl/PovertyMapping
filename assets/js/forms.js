@@ -415,6 +415,10 @@ async function editCenter(id) {
 }
 
 async function deleteCenter(id) {
+    if (!window.canDelete) {
+        showToast('Anda tidak memiliki izin untuk menghapus data.', 'error');
+        return;
+    }
     if (!confirm('Hapus tempat ibadah ini? Semua data terkait akan dihapus.')) return;
     showLoading(true);
     const r = await ApiCenters.delete(id);
@@ -725,6 +729,10 @@ async function editHouse(id) {
 }
 
 async function deleteHouse(id) {
+    if (!window.canDelete) {
+        showToast('Anda tidak memiliki izin untuk menghapus data.', 'error');
+        return;
+    }
     if (!confirm('Hapus data rumah ini? Semua data terkait akan dihapus.')) return;
     showLoading(true);
     const r = await ApiHouses.delete(id);

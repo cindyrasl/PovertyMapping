@@ -1,24 +1,49 @@
 /* ============================================================
-   app.js — Main app orchestrator
-   Single-admin simplified version
+   app.js — Main app orchestrator with authentication
    ============================================================ */
 'use strict';
 
+// Flag to prevent duplicate initialization
+let isAppInitialized = false;
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Prevent duplicate initialization
+    if (isAppInitialized) {
+        console.warn('App already initialized, skipping duplicate call');
+        return;
+    }
+    
+    // First check authentication
+    const isAuthed = await checkAuth();
+    
+    if (!isAuthed) {
+        // Not logged in, redirect to login
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Initialize UI based on role
+    initUIByRole();
+    
+    // Add logout button to sidebar
+    addLogoutButton();
+    
     // Init map
     initMap();
-
+    
     // Init UI
     initNavTabs();
     initFilters();
     initFormTabs();
     initHelpModal();
-
+    
     // Load data
     await loadAllData();
-
+    
     // Nav tab: activate placement modes
     hookTabPlacementModes();
+    
+    isAppInitialized = true;
 });
 
 async function loadAllData() {
@@ -37,11 +62,6 @@ async function loadCenters() {
 
 async function loadHouses() {
     const params = {};
-    if (State.povertyFilter)   params.poverty_status  = State.povertyFilter;
-    if (State.aidFilter)       params.aid_status      = State.aidFilter;
-    if (State.searchQuery)     params.q               = State.searchQuery;
-    if (State.conditionFilter) params.house_condition = State.conditionFilter;
-    if (State.ageFilter)       params.age_category    = State.ageFilter;
 
     const r = await ApiHouses.list({ ...params, limit: 500 });
     if (r.ok && r.data?.success) {
@@ -126,26 +146,6 @@ function initFilters() {
         });
     });
 
-    document.getElementById('filterPoverty')?.addEventListener('change', function () {
-        State.povertyFilter = this.value;
-        loadHouses();
-    });
-
-    document.getElementById('filterAid')?.addEventListener('change', function () {
-        State.aidFilter = this.value;
-        loadHouses();
-    });
-
-    document.getElementById('filterCondition')?.addEventListener('change', function () {
-        State.conditionFilter = this.value;
-        loadHouses();
-    });
-
-    document.getElementById('filterAge')?.addEventListener('change', function () {
-        State.ageFilter = this.value;
-        loadHouses();
-    });
-
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', debounce(async (e) => {
@@ -153,13 +153,6 @@ function initFilters() {
             renderAllLayers();
         }, 300));
     }
-
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const sf = document.getElementById('houseSubFilters');
-            if (sf) sf.style.display = btn.dataset.filter === 'centers' ? 'none' : '';
-        });
-    });
 }
 
 let helpStep = 1;

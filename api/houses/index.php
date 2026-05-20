@@ -1,8 +1,7 @@
 <?php
 // ============================================================
 // api/houses/index.php — Households CRUD
-// FIX: resolveManagingCenter uses subquery, not HAVING alias
-//      (MariaDB 10.4 doesn't support HAVING with computed alias)
+// AUTH: requireAuth() for all; requireAdmin() for DELETE
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
@@ -13,11 +12,9 @@ $id     = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
 switch ("$method:$action") {
 
-    // ================================================================
-    // LIST
-    // ================================================================
     case 'GET:list':
     case 'GET:': {
+        requireAuth();
         $pdo    = Database::get();
         $where  = ['h.is_active = 1'];
         $params = [];
@@ -50,7 +47,6 @@ switch ("$method:$action") {
             $q = '%' . $_GET['q'] . '%';
             $params[] = $q; $params[] = $q; $params[] = $q;
         }
-        // Age-category filter (computed from date_of_birth)
         if (!empty($_GET['age_category'])) {
             $ageSql = ageCategoryFilter($_GET['age_category']);
             if ($ageSql) $where[] = $ageSql;
@@ -84,10 +80,8 @@ switch ("$method:$action") {
         break;
     }
 
-    // ================================================================
-    // SHOW
-    // ================================================================
     case 'GET:show': {
+        requireAuth();
         if (!$id) Response::error('ID is required.', 400);
 
         $pdo  = Database::get();
@@ -109,19 +103,16 @@ switch ("$method:$action") {
 
         castHousehold($row);
 
-        // Aid history
         $aidStmt = $pdo->prepare("
             SELECT ah.*, rc.name AS center_name
             FROM aid_history ah
             LEFT JOIN religious_centers rc ON rc.id = ah.center_id
             WHERE ah.household_id = ?
-            ORDER BY ah.aid_date DESC
-            LIMIT 20
+            ORDER BY ah.aid_date DESC LIMIT 20
         ");
         $aidStmt->execute([$id]);
         $row['aid_history'] = $aidStmt->fetchAll();
 
-        // Household members
         try {
             $depStmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? ORDER BY id");
             $depStmt->execute([$id]);
@@ -134,10 +125,9 @@ switch ("$method:$action") {
         break;
     }
 
-    // ================================================================
-    // CREATE
-    // ================================================================
     case 'POST:create': {
+        requireAuth();   // both roles can create
+
         $data = Validator::json();
         $v = Validator::make($data, [
             'head_name'      => 'required|string|maxlen:150',
@@ -156,8 +146,7 @@ switch ("$method:$action") {
         ]);
         $v->validate_or_fail();
 
-        $pdo = Database::get();
-
+        $pdo  = Database::get();
         $calc = PovertyCalculator::calculate(
             (int)($data['income']         ?? 0),
             (int)($data['dependents']     ?? 1),
@@ -165,7 +154,6 @@ switch ("$method:$action") {
             $data['education']            ?? 'sd',
             $data['land_ownership']       ?? 'milik'
         );
-
         $managingId = resolveManagingCenter($pdo, (float)$data['latitude'], (float)$data['longitude']);
 
         $stmt = $pdo->prepare("
@@ -187,7 +175,7 @@ switch ("$method:$action") {
             !empty($data['job'])     ? Validator::sanitizeString($data['job']) : null,
             $data['house_condition'] ?? 'layak',
             $data['land_ownership']  ?? 'milik',
-            $calc['score']  ?? 0,
+            $calc['score'] ?? 0,
             $calc['status'],
             $data['aid_status']      ?? 'not_yet',
             $managingId,
@@ -198,8 +186,6 @@ switch ("$method:$action") {
         ]);
 
         $newId = (int)$pdo->lastInsertId();
-
-        // Save members if provided
         if (!empty($data['household_members']) && is_array($data['household_members'])) {
             saveMembers($pdo, $newId, $data['household_members']);
         }
@@ -215,10 +201,9 @@ switch ("$method:$action") {
         break;
     }
 
-    // ================================================================
-    // UPDATE
-    // ================================================================
     case 'POST:update': {
+        requireAuth();   // both roles can update
+
         if (!$id) Response::error('ID is required.', 400);
 
         $data = Validator::json();
@@ -252,7 +237,6 @@ switch ("$method:$action") {
             $data['education']            ?? 'sd',
             $data['land_ownership']       ?? 'milik'
         );
-
         $managingId = resolveManagingCenter($pdo, (float)$data['latitude'], (float)$data['longitude']);
 
         $pdo->prepare("
@@ -273,7 +257,7 @@ switch ("$method:$action") {
             !empty($data['job'])     ? Validator::sanitizeString($data['job']) : null,
             $data['house_condition'] ?? 'layak',
             $data['land_ownership']  ?? 'milik',
-            $calc['score']  ?? 0,
+            $calc['score'] ?? 0,
             $calc['status'],
             $data['aid_status']      ?? 'not_yet',
             $managingId,
@@ -299,18 +283,15 @@ switch ("$method:$action") {
         break;
     }
 
-    // ================================================================
-    // PATCH — position only (map drag)
-    // ================================================================
     case 'POST:patch': {
+        requireAuth();
         if (!$id) Response::error('ID is required.', 400);
 
         $data = Validator::json();
-        $v = Validator::make($data, [
+        Validator::make($data, [
             'latitude'  => 'required|latitude',
             'longitude' => 'required|longitude',
-        ]);
-        $v->validate_or_fail();
+        ])->validate_or_fail();
 
         $pdo = Database::get();
         $managingId = resolveManagingCenter($pdo, (float)$data['latitude'], (float)$data['longitude']);
@@ -334,10 +315,8 @@ switch ("$method:$action") {
         break;
     }
 
-    // ================================================================
-    // DELETE (soft)
-    // ================================================================
     case 'POST:delete': {
+        requireAdmin();   // ADMIN ONLY
         if (!$id) Response::error('ID is required.', 400);
 
         $pdo = Database::get();
@@ -360,7 +339,6 @@ switch ("$method:$action") {
 // HELPERS
 // ================================================================
 
-/** Build SQL fragment for age category filter (no bind params needed) */
 function ageCategoryFilter(string $cat): string
 {
     return match($cat) {
@@ -385,42 +363,25 @@ function castHousehold(array &$r): void
     $r['poverty_label']= PovertyCalculator::label($r['poverty_status']  ?? '');
 }
 
-/**
- * FIX: Use a subquery to compute distance so HAVING works correctly
- * in MariaDB 10.4 which doesn't allow HAVING to reference a SELECT alias
- * that wraps an aggregate-like expression.
- *
- * The correct pattern for MariaDB:
- *   SELECT * FROM (SELECT ..., expr AS distance_m FROM ...) sub WHERE distance_m <= radius
- *
- * When there are multiple centers whose radius covers the point,
- * pick the one with the fewest managed households (load-balance).
- */
 function resolveManagingCenter(\PDO $pdo, float $lat, float $lng): ?int
 {
     $stmt = $pdo->prepare("
-        SELECT sub.id
-        FROM (
+        SELECT sub.id FROM (
             SELECT rc.id, rc.radius,
                 (6371000 * ACOS(
                     COS(RADIANS(:lat1)) * COS(RADIANS(rc.latitude)) *
-                    COS(RADIANS(rc.longitude) - RADIANS(:lng1)) +
+                    COS(RADIANS(rc.longitude) - RADIANS(:lng)) +
                     SIN(RADIANS(:lat2)) * SIN(RADIANS(rc.latitude))
                 )) AS distance_m,
                 (SELECT COUNT(*) FROM households hh
                     WHERE hh.managing_center_id = rc.id AND hh.is_active = 1) AS load_count
-            FROM religious_centers rc
-            WHERE rc.is_active = 1
+            FROM religious_centers rc WHERE rc.is_active = 1
         ) sub
         WHERE sub.distance_m <= sub.radius
         ORDER BY sub.load_count ASC, sub.distance_m ASC
         LIMIT 1
     ");
-    $stmt->execute([
-        ':lat1' => $lat,
-        ':lng1' => $lng,
-        ':lat2' => $lat,
-    ]);
+    $stmt->execute([':lat1' => $lat, ':lng' => $lng, ':lat2' => $lat]);
     $row = $stmt->fetch();
     return $row ? (int)$row['id'] : null;
 }
@@ -437,15 +398,12 @@ function saveMembers(\PDO $pdo, int $householdId, array $data): void
             $name = trim($dep['name'] ?? '');
             if (!$name) continue;
             $stmt->execute([
-                $householdId,
-                $name,
-                !empty($dep['nik'])          ? $dep['nik']          : null,
+                $householdId, $name,
+                !empty($dep['nik'])          ? $dep['nik']           : null,
                 $dep['gender']               ?? 'male',
-                !empty($dep['date_of_birth'])? $dep['date_of_birth']: null,
+                !empty($dep['date_of_birth'])? $dep['date_of_birth'] : null,
                 $dep['education']            ?? 'sd',
             ]);
         }
-    } catch (\Throwable) {
-        // household_members may not exist — silently ignore
-    }
+    } catch (\Throwable) {}
 }

@@ -101,6 +101,8 @@ switch ("$method:$action") {
     }
 
     case 'POST:approve': {
+        $user = requireAuth();
+
         if (!$id) Response::error('ID is required.', 400);
 
         $pdo  = Database::get();
@@ -190,6 +192,8 @@ switch ("$method:$action") {
     }
 
     case 'POST:reject': {
+        $user = requireAuth();
+        
         if (!$id) Response::error('ID is required.', 400);
         $pdo = Database::get();
         $chk = $pdo->prepare("SELECT id FROM public_reports WHERE id=? AND status='pending'");
