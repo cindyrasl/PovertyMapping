@@ -79,9 +79,6 @@ const SEVERITY_COLORS = {
 
 const State = {
     activeFilter: 'all',
-    povertyFilter: '',
-    aidFilter:     '',
-    conditionFilter: '',
     searchQuery:   '',
     centers:    [],
     houses:     [],
