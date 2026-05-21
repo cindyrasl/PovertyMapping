@@ -46,11 +46,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     isAppInitialized = true;
 });
 
+async function refreshCenters() {
+    const r = await ApiCenters.list();
+    if (r.ok && r.data?.success) {
+        State.centers = r.data.data.centers || [];
+        recountCenterHouseholds(); // Hitung ulang setelah dapat data baru
+        renderCenters();
+        updateLayerCounts();
+    }
+}
+
+// Override loadAllData untuk memastikan recount
 async function loadAllData() {
     showLoading(true);
     await Promise.all([loadCenters(), loadHouses(), loadStats()]);
+    recountCenterHouseholds(); // ⭐ PASTIKAN HITUNG ULANG
+    renderCenterList();
+    renderHouseList();
     showLoading(false);
 }
+
+// Export fungsi refresh
+window.refreshCenters = refreshCenters;
 
 async function loadCenters() {
     const r = await ApiCenters.list();
@@ -62,6 +79,10 @@ async function loadCenters() {
 
 async function loadHouses() {
     const params = {};
+    if (State.povertyFilter) params.poverty_status = State.povertyFilter;
+    if (State.aidFilter) params.aid_status = State.aidFilter;
+    if (State.searchQuery) params.q = State.searchQuery;
+    if (State.conditionFilter) params.house_condition = State.conditionFilter;
 
     const r = await ApiHouses.list({ ...params, limit: 500 });
     if (r.ok && r.data?.success) {
