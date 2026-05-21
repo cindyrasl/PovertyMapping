@@ -79,10 +79,13 @@ const SEVERITY_COLORS = {
 
 const State = {
     activeFilter: 'all',
-    searchQuery:   '',
-    centers:    [],
-    houses:     [],
-    stats:      null,
+    povertyFilter: '',
+    aidFilter: '',
+    conditionFilter: '',
+    searchQuery: '',
+    centers: [],
+    houses: [],
+    stats: null,
 };
 
 function debounce(fn, delay = 300) {
