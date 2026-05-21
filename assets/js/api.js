@@ -1,6 +1,5 @@
 /* ============================================================
    api.js — Centralized fetch wrapper
-   Single-admin simplified version
    ============================================================ */
 'use strict';
 
@@ -19,7 +18,6 @@ const Http = {
             return { ok: false, status: 0, data: { success: false, message: 'Koneksi gagal.' } };
         }
     },
-
     async post(endpoint, body = {}) {
         return this.request(endpoint, {
             method: 'POST',
@@ -42,7 +40,7 @@ const ApiHouses = {
     async update(id, body) {
         return Http.post(API.houses + '?action=update&id=' + id, body);
     },
-    async patch(id, body) {                                         
+    async patch(id, body) {
         return Http.post(API.houses + '?action=patch&id=' + id, body);
     },
     async delete(id) {
@@ -76,6 +74,9 @@ const ApiCenters = {
     async coverage(id) {
         return Http.request(API.centers + '?action=coverage&id=' + id, { method: 'GET' });
     },
+    async nearby(lat, lng, km = 5) {
+        return Http.request(API.centers + `?action=nearby&lat=${lat}&lng=${lng}&km=${km}`, { method: 'GET' });
+    },
 };
 
 const ApiAid = {
@@ -89,7 +90,7 @@ const ApiAid = {
     async create(body) {
         return Http.post(API.aid + '?action=create', body);
     },
-    async update(id, body) {                                          // ADD THIS
+    async update(id, body) {
         return Http.post(API.aid + '?action=update&id=' + id, body);
     },
     async delete(id) {
@@ -105,7 +106,7 @@ const ApiReports = {
         const qs = new URLSearchParams(params).toString();
         return Http.request(API.reports + (qs ? '?' + qs : ''), { method: 'GET' });
     },
-    async show(id) {                                                  // ADD THIS
+    async show(id) {
         return Http.request(API.reports + '?action=show&id=' + id, { method: 'GET' });
     },
     async create(body) {
