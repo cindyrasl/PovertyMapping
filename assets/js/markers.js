@@ -642,15 +642,15 @@ async function showHousePopup(marker, h, forceRefresh = false) {
 
             <!-- ── HEADER ───────────────────────────────── -->
             <div class="hp-header">
+                <div class="hp-drag-hint" title="Seret marker untuk memindahkan">
+                    <i class="fas fa-up-down-left-right"></i>
+                </div>
                 <div class="hp-avatar" style="background:${povColor}18;color:${povColor};">
                     <i class="fas fa-home"></i>
                 </div>
                 <div class="hp-header-info">
                     <div class="hp-head-name">${escapeHtml(houseData.head_name)}</div>
                     <div class="hp-nik">NIK: ${escapeHtml(houseData.head_nik || houseData.nik || '—')}</div>
-                </div>
-                <div class="hp-drag-hint" title="Seret marker untuk memindahkan">
-                    <i class="fas fa-up-down-left-right"></i>
                 </div>
             </div>
 
