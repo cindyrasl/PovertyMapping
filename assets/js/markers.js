@@ -483,12 +483,11 @@ function updateAllHouseColors() {
     });
 }
 
-// assets/js/markers.js - Perbaiki fungsi showHousePopup
-// Tambahkan parameter forceRefresh untuk memuat ulang data
+// assets/js/markers.js — showHousePopup (redesigned popup)
 async function showHousePopup(marker, h, forceRefresh = false) {
     let houseData = h;
-    
-    // Jika data tidak memiliki aid_history atau forceRefresh=true, ambil data terbaru dari API
+
+    // Fetch fresh data if aid_history is missing or forceRefresh=true
     if (forceRefresh || !houseData.aid_history || houseData.aid_history.length === undefined) {
         try {
             showLoading(true);
@@ -496,7 +495,6 @@ async function showHousePopup(marker, h, forceRefresh = false) {
             showLoading(false);
             if (r.ok && r.data?.success) {
                 houseData = r.data.data;
-                // Update data di State
                 const index = State.houses.findIndex(hh => hh.id === houseData.id);
                 if (index !== -1) {
                     State.houses[index] = houseData;
@@ -510,127 +508,224 @@ async function showHousePopup(marker, h, forceRefresh = false) {
             console.error('Failed to load fresh household data:', err);
         }
     }
-    
-    const hasAid = (houseData.aid_history && houseData.aid_history.length > 0);
-    const aidStatusText = hasAid ? 'Sudah Menerima Bantuan' : 'Belum Menerima Bantuan';
-    const aidStatusColor = hasAid ? '#0b9e73' : '#d97706';
-    
-    let age = '';
+
+    // ── Derived values ───────────────────────────────────────────────
+    const hasAid        = (houseData.aid_history && houseData.aid_history.length > 0);
+    const aidStatusText = hasAid ? 'Penerima Bantuan' : 'Belum Ada Bantuan';
+    const aidStatusColor= hasAid ? '#0b9e73' : '#d97706';
+
+    let age = '—';
     if (houseData.head_date_of_birth) {
-        const birthDate = new Date(houseData.head_date_of_birth);
-        const today = new Date();
-        age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+        const bd = new Date(houseData.head_date_of_birth), now = new Date();
+        let a = now.getFullYear() - bd.getFullYear();
+        if (now.getMonth() < bd.getMonth() || (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) a--;
+        age = a;
     }
-    
+
     const povColor = POVERTY_COLORS[houseData.poverty_status] || '#9ba4b5';
     const povLabel = POVERTY_LABELS[houseData.poverty_status] || houseData.poverty_status;
-    
-    let employmentDisplay = '';
+
+    // Employment one-liner
+    let jobLine = '—';
     if (houseData.head_employment_status === 'unemployed') {
-        employmentDisplay = 'Tidak Bekerja / Menganggur';
+        jobLine = 'Tidak Bekerja';
     } else if (houseData.head_employment_status === 'studying') {
-        employmentDisplay = `Pendidikan: ${escapeHtml(houseData.head_institution_name || '-')}`;
+        jobLine = escapeHtml(houseData.head_institution_name || 'Pelajar/Mahasiswa');
     } else if (houseData.head_employment_status === 'working') {
-        employmentDisplay = `Pekerjaan: ${escapeHtml(houseData.head_job_name || '-')} | Pendapatan: ${formatRp(houseData.head_monthly_income)}/bln`;
+        jobLine = escapeHtml(houseData.head_job_name || 'Bekerja');
+        if (houseData.head_monthly_income) jobLine += ` · ${formatRp(houseData.head_monthly_income)}/bln`;
     }
-    
-    const fullAddress = houseData.full_address || houseData.address || '';
-    
-    // ⭐ BUILD AID HISTORY HTML
-    let aidHistoryHtml = '';
-    if (houseData.aid_history && houseData.aid_history.length > 0) {
-        const latestAids = houseData.aid_history.slice(0, 5); // Show up to 5 latest
-        aidHistoryHtml = `
-            <div class="popup-section">
-                <div class="popup-section-label"><i class="fas fa-gift"></i> Riwayat Bantuan (${houseData.aid_history.length})</div>
-                <div style="max-height: 180px; overflow-y: auto;">
-                    ${latestAids.map(aid => `
-                        <div class="popup-row" style="margin-bottom: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
-                            <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
-                                <span class="aid-badge" style="background:#e0faf3;color:#0b9e73;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:600;">
-                                    ${aid.aid_type_label || AID_LABELS[aid.aid_type] || aid.aid_type || 'Bantuan'}
-                                </span>
-                                <span style="font-size:10px;color:#5a6478;">${formatDate(aid.aid_date)}</span>
-                            </div>
-                            ${aid.amount ? `<div style="font-size:10px;color:#0f1623;margin-top:2px;margin-left:0;"><strong>${formatRp(aid.amount)}</strong></div>` : ''}
-                            ${aid.description || aid.notes ? `<div style="font-size:9.5px;color:#9ba4b5;margin-top:2px;margin-left:0;">${escapeHtml(aid.description || aid.notes).substring(0, 60)}${(aid.description || aid.notes || '').length > 60 ? '…' : ''}</div>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-                ${houseData.aid_history.length > 5 ? `<div class="popup-row" style="font-size:10px;color:var(--text-muted);margin-top:4px;">+${houseData.aid_history.length - 5} bantuan lainnya</div>` : ''}
+
+    const fullAddress = houseData.full_address || houseData.address || '—';
+    const conditionIcon = houseData.house_condition === 'layak'
+        ? `<span style="color:#0b9e73;"><i class="fas fa-check-circle"></i> Layak</span>`
+        : houseData.house_condition === 'tidak_layak'
+            ? `<span style="color:#d63230;"><i class="fas fa-times-circle"></i> Tidak Layak</span>`
+            : '—';
+
+    // ── Location pills (RT/RW · Kelurahan · Kecamatan) ───────────────
+    const locationPills = [
+        houseData.rt    ? `RT ${escapeHtml(houseData.rt)}/${escapeHtml(houseData.rw || '?')}` : null,
+        houseData.kelurahan ? escapeHtml(houseData.kelurahan) : null,
+        houseData.kecamatan ? escapeHtml(houseData.kecamatan) : null,
+    ].filter(Boolean);
+
+    const locationPillsHtml = locationPills.length
+        ? `<div class="hp-pills">${locationPills.map(p => `<span class="hp-pill">${p}</span>`).join('')}</div>`
+        : '';
+
+    // ── Family members ────────────────────────────────────────────────
+    let membersHtml = '';
+    if (houseData.household_members && houseData.household_members.length) {
+        const members = houseData.household_members;
+        const shown   = members.slice(0, 5);
+        const extra   = members.length - shown.length;
+        membersHtml = `
+        <div class="hp-section">
+            <div class="hp-section-header">
+                <i class="fas fa-users"></i>
+                <span>Anggota Keluarga</span>
+                <span class="hp-count">${members.length}</span>
             </div>
-        `;
+            <div class="hp-members-list">
+                ${shown.map(m => {
+                    let statusLine = '';
+                    if (m.employment_status === 'working')   statusLine = escapeHtml(m.job_name || 'Bekerja');
+                    else if (m.employment_status === 'studying') statusLine = escapeHtml(m.institution_name || 'Sekolah');
+                    else if (m.employment_status === 'unemployed') statusLine = 'Tidak bekerja';
+                    return `<div class="hp-member-row">
+                        <div class="hp-member-avatar"><i class="fas fa-user"></i></div>
+                        <div class="hp-member-info">
+                            <div class="hp-member-name">${escapeHtml(m.name)}</div>
+                            <div class="hp-member-meta">${escapeHtml(m.relationship || '—')}${statusLine ? ' · ' + statusLine : ''}</div>
+                        </div>
+                    </div>`;
+                }).join('')}
+                ${extra > 0 ? `<div class="hp-member-more"><i class="fas fa-ellipsis-h"></i> +${extra} anggota lainnya</div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    // ── Aid history ───────────────────────────────────────────────────
+    let aidHistoryHtml = '';
+    if (hasAid) {
+        const latestAids = houseData.aid_history.slice(0, 5);
+        const extraAids  = houseData.aid_history.length - latestAids.length;
+        aidHistoryHtml = `
+        <div class="hp-section">
+            <div class="hp-section-header">
+                <i class="fas fa-hand-holding-heart"></i>
+                <span>Riwayat Bantuan</span>
+                <span class="hp-count">${houseData.aid_history.length}</span>
+            </div>
+            <div class="hp-aid-list">
+                ${latestAids.map(aid => `
+                <div class="hp-aid-row">
+                    <div class="hp-aid-left">
+                        <span class="hp-aid-type">${escapeHtml(aid.aid_type_label || (typeof AID_LABELS !== 'undefined' && AID_LABELS[aid.aid_type]) || aid.aid_type || 'Bantuan')}</span>
+                        ${aid.amount ? `<span class="hp-aid-amount">${formatRp(aid.amount)}</span>` : ''}
+                    </div>
+                    <div class="hp-aid-date">${formatDate(aid.aid_date)}</div>
+                    ${aid.description || aid.notes ? `<div class="hp-aid-note">${escapeHtml((aid.description || aid.notes || '').substring(0, 55))}${(aid.description || aid.notes || '').length > 55 ? '…' : ''}</div>` : ''}
+                </div>`).join('')}
+                ${extraAids > 0 ? `<div class="hp-member-more"><i class="fas fa-ellipsis-h"></i> +${extraAids} bantuan lainnya</div>` : ''}
+            </div>
+        </div>`;
     } else {
         aidHistoryHtml = `
-            <div class="popup-section">
-                <div class="popup-section-label"><i class="fas fa-gift"></i> Riwayat Bantuan</div>
-                <div class="popup-row" style="color: var(--text-muted); font-style: italic;">
-                    <i class="fas fa-info-circle"></i> Belum ada riwayat bantuan
-                </div>
+        <div class="hp-section hp-aid-empty">
+            <div class="hp-section-header">
+                <i class="fas fa-hand-holding-heart"></i>
+                <span>Riwayat Bantuan</span>
             </div>
-        `;
+            <div class="hp-empty-hint"><i class="fas fa-inbox"></i> Belum ada riwayat bantuan</div>
+        </div>`;
     }
-    
-    const popup = L.popup({ maxWidth: 340, closeButton: true })
+
+    // ── Assigned center ───────────────────────────────────────────────
+    const centerHtml = houseData.center_name
+        ? `<div class="hp-center-row">
+               <i class="fas fa-place-of-worship"></i>
+               <span>${escapeHtml(houseData.center_name)}</span>
+           </div>`
+        : '';
+
+    // ── Coordinates ──────────────────────────────────────────────────
+    const lat = (houseData.latitude  || marker.getLatLng().lat).toFixed(6);
+    const lng = (houseData.longitude || marker.getLatLng().lng).toFixed(6);
+
+    // ── Build popup ──────────────────────────────────────────────────
+    const popup = L.popup({ maxWidth: 360, minWidth: 300, closeButton: true, className: 'hp-leaflet-popup' })
         .setLatLng(marker.getLatLng())
         .setContent(`
-        <div class="popup-info">
-            <div class="popup-name">${escapeHtml(houseData.head_name)}</div>
-            <div class="popup-hint"><i class="fas fa-arrows-alt" style="font-size:8px;"></i> Seret marker untuk pindahkan</div>
-            
-            <div class="popup-badges">
-                <span class="popup-badge" style="background:${povColor}15;color:${povColor};">● ${povLabel}</span>
-                <span class="popup-badge" style="background:${aidStatusColor}15;color:${aidStatusColor};">${aidStatusText}</span>
-            </div>
-            
-            <!-- Address Section -->
-            <div class="popup-section">
-                <div class="popup-section-label"><i class="fas fa-map-marker-alt"></i> Alamat</div>
-                <div class="popup-row"><strong>Alamat:</strong> ${truncate(fullAddress, 50)}</div>
-                ${houseData.rt ? `<div class="popup-row"><strong>RT/RW:</strong> ${escapeHtml(houseData.rt)}/${escapeHtml(houseData.rw || '-')}</div>` : ''}
-                ${houseData.kelurahan ? `<div class="popup-row"><strong>Kelurahan:</strong> ${escapeHtml(houseData.kelurahan)}</div>` : ''}
-                ${houseData.kecamatan ? `<div class="popup-row"><strong>Kecamatan:</strong> ${escapeHtml(houseData.kecamatan)}</div>` : ''}
-                ${houseData.center_name ? `<div class="popup-row"><strong><i class="fas fa-place-of-worship"></i> Pusat:</strong> ${escapeHtml(houseData.center_name)}</div>` : ''}
-            </div>
-            
-            <!-- Head of Household Section -->
-            <div class="popup-section">
-                <div class="popup-section-label"><i class="fas fa-user"></i> Kepala Keluarga</div>
-                <div class="popup-row"><strong>NIK:</strong> ${escapeHtml(houseData.head_nik || houseData.nik || '—')}</div>
-                <div class="popup-row"><strong>Usia:</strong> ${age} tahun</div>
-                <div class="popup-row"><strong>Pendidikan:</strong> ${educationLabel(houseData.head_education)}</div>
-                <div class="popup-row"><strong>Status:</strong> ${employmentDisplay}</div>
-                ${houseData.house_condition ? `<div class="popup-row"><strong>Kondisi Rumah:</strong> ${houseData.house_condition === 'layak' ? 'Layak' : 'Tidak Layak'}</div>` : ''}
-            </div>
-            
-            ${houseData.household_members && houseData.household_members.length ? `
-            <div class="popup-section">
-                <div class="popup-section-label"><i class="fas fa-users"></i> Anggota Keluarga (${houseData.household_members.length})</div>
-                <div style="max-height: 150px; overflow-y: auto;">
-                    ${houseData.household_members.slice(0, 4).map(m => `
-                        <div class="popup-row" style="font-size:11px;">
-                            <strong>${escapeHtml(m.name)}</strong> (${m.relationship}) 
-                            ${m.employment_status === 'working' ? `· ${escapeHtml(m.job_name || 'Bekerja')}` : 
-                              m.employment_status === 'studying' ? `· ${escapeHtml(m.institution_name || 'Sekolah')}` : ''}
-                        </div>
-                    `).join('')}
-                    ${houseData.household_members.length > 4 ? `<div class="popup-row" style="font-size:10px;color:var(--text-muted);">+${houseData.household_members.length - 4} anggota lainnya</div>` : ''}
+        <div class="hp-popup">
+
+            <!-- ── HEADER ───────────────────────────────── -->
+            <div class="hp-header">
+                <div class="hp-avatar" style="background:${povColor}18;color:${povColor};">
+                    <i class="fas fa-home"></i>
+                </div>
+                <div class="hp-header-info">
+                    <div class="hp-head-name">${escapeHtml(houseData.head_name)}</div>
+                    <div class="hp-nik">NIK: ${escapeHtml(houseData.head_nik || houseData.nik || '—')}</div>
+                </div>
+                <div class="hp-drag-hint" title="Seret marker untuk memindahkan">
+                    <i class="fas fa-up-down-left-right"></i>
                 </div>
             </div>
-            ` : ''}
-            
-            <!-- ⭐ AID HISTORY SECTION -->
-            ${aidHistoryHtml}
-            
-            <div class="popup-actions">
-                <button class="btn btn-primary btn-sm" onclick="editHouse(${houseData.id})"><i class="fas fa-pen"></i> Edit</button>
-                <button class="btn btn-success btn-sm" onclick="openAidModalForHouse(${houseData.id})"><i class="fas fa-gift"></i> Bantuan</button>
-                ${window.canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteHouse(${houseData.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
+
+            <!-- ── STATUS STRIP ─────────────────────────── -->
+            <div class="hp-status-strip">
+                <div class="hp-status-chip" style="background:${povColor}14;color:${povColor};border-color:${povColor}30;">
+                    <span class="hp-chip-dot" style="background:${povColor};"></span>${povLabel}
+                </div>
+                <div class="hp-status-chip" style="background:${aidStatusColor}12;color:${aidStatusColor};border-color:${aidStatusColor}28;">
+                    <i class="fas ${hasAid ? 'fa-check-circle' : 'fa-clock'}"></i>${aidStatusText}
+                </div>
             </div>
+
+            <!-- ── SCROLLABLE BODY ──────────────────────── -->
+            <div class="hp-body">
+
+                <!-- Location -->
+                <div class="hp-section">
+                    <div class="hp-section-header">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Lokasi</span>
+                    </div>
+                    <div class="hp-address">${escapeHtml(fullAddress)}</div>
+                    ${locationPillsHtml}
+                    ${centerHtml}
+                    <div class="hp-coords"><i class="fas fa-crosshairs"></i>${lat}, ${lng}</div>
+                </div>
+
+                <!-- Head of Household -->
+                <div class="hp-section">
+                    <div class="hp-section-header">
+                        <i class="fas fa-user"></i>
+                        <span>Kepala Keluarga</span>
+                    </div>
+                    <div class="hp-kv-grid">
+                        <div class="hp-kv-row">
+                            <span class="hp-kv-label">Usia</span>
+                            <span class="hp-kv-val">${age} tahun</span>
+                        </div>
+                        <div class="hp-kv-row">
+                            <span class="hp-kv-label">Pendidikan</span>
+                            <span class="hp-kv-val">${educationLabel(houseData.head_education) || '—'}</span>
+                        </div>
+                        <div class="hp-kv-row">
+                            <span class="hp-kv-label">Pekerjaan</span>
+                            <span class="hp-kv-val">${jobLine}</span>
+                        </div>
+                        <div class="hp-kv-row">
+                            <span class="hp-kv-label">Kondisi Rumah</span>
+                            <span class="hp-kv-val">${conditionIcon}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Family Members -->
+                ${membersHtml}
+
+                <!-- Aid History -->
+                ${aidHistoryHtml}
+
+            </div><!-- /.hp-body -->
+
+            <!-- ── ACTIONS ──────────────────────────────── -->
+            <div class="hp-actions">
+                <button class="hp-btn hp-btn-primary" onclick="editHouse(${houseData.id})">
+                    <i class="fas fa-pen"></i> Edit
+                </button>
+                <button class="hp-btn hp-btn-success" onclick="openAidModalForHouse(${houseData.id})">
+                    <i class="fas fa-gift"></i> Tambah Bantuan
+                </button>
+                ${window.canDelete ? `<button class="hp-btn hp-btn-danger" onclick="deleteHouse(${houseData.id})" title="Hapus"><i class="fas fa-trash"></i></button>` : ''}
+            </div>
+
         </div>`);
-    
+
     marker.unbindPopup();
     marker.bindPopup(popup).openPopup();
 }
