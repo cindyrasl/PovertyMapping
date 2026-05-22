@@ -124,25 +124,94 @@ switch ($action) {
     }
 
     case 'age_distribution': {
-        $row = $pdo->query("
+        $headQuery = "
             SELECT 
-                SUM(CASE WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) < 12 THEN 1 ELSE 0 END) AS anak,
-                SUM(CASE WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 12 AND 17 THEN 1 ELSE 0 END) AS remaja,
-                SUM(CASE WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS pemuda,
-                SUM(CASE WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS dewasa,
-                SUM(CASE WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) >= 60 THEN 1 ELSE 0 END) AS lansia,
-                SUM(CASE WHEN head_date_of_birth IS NULL THEN 1 ELSE 0 END) AS unknown
-            FROM households WHERE is_active = 1
-        ")->fetch();
+                CASE 
+                    WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) < 12 THEN 'anak'
+                    WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 12 AND 17 THEN 'remaja'
+                    WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 18 AND 30 THEN 'pemuda'
+                    WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) BETWEEN 31 AND 59 THEN 'dewasa'
+                    WHEN TIMESTAMPDIFF(YEAR, head_date_of_birth, CURDATE()) >= 60 THEN 'lansia'
+                    ELSE NULL
+                END AS age_group
+            FROM households 
+            WHERE is_active = 1 AND head_date_of_birth IS NOT NULL
+        ";
+
+        $memberQuery = "
+            SELECT 
+                CASE 
+                    WHEN TIMESTAMPDIFF(YEAR, hm.date_of_birth, CURDATE()) < 12 THEN 'anak'
+                    WHEN TIMESTAMPDIFF(YEAR, hm.date_of_birth, CURDATE()) BETWEEN 12 AND 17 THEN 'remaja'
+                    WHEN TIMESTAMPDIFF(YEAR, hm.date_of_birth, CURDATE()) BETWEEN 18 AND 30 THEN 'pemuda'
+                    WHEN TIMESTAMPDIFF(YEAR, hm.date_of_birth, CURDATE()) BETWEEN 31 AND 59 THEN 'dewasa'
+                    WHEN TIMESTAMPDIFF(YEAR, hm.date_of_birth, CURDATE()) >= 60 THEN 'lansia'
+                    ELSE NULL
+                END AS age_group
+            FROM household_members hm
+            INNER JOIN households h ON h.id = hm.household_id
+            WHERE h.is_active = 1 AND hm.date_of_birth IS NOT NULL
+        ";
+
+        $combinedQuery = "
+            SELECT age_group, COUNT(*) as total
+            FROM (
+                $headQuery
+                UNION ALL
+                $memberQuery
+            ) AS all_persons
+            WHERE age_group IS NOT NULL
+            GROUP BY age_group
+        ";
         
-        foreach ($row as &$v) {
-            $v = (int)$v;
+        $result = $pdo->query($combinedQuery);
+        $rows = $result->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Inisialisasi array dengan nilai default 0
+        $distribution = [
+            'anak' => 0,      // < 12 tahun
+            'remaja' => 0,    // 12-17 tahun
+            'pemuda' => 0,    // 18-30 tahun
+            'dewasa' => 0,    // 31-59 tahun
+            'lansia' => 0,    // >= 60 tahun
+            'unknown' => 0,   // data tanggal lahir tidak tersedia
+        ];
+        
+        // Hitung jumlah orang tanpa tanggal lahir
+        $unknownCount = 0;
+        
+        // Hitung kepala keluarga tanpa tanggal lahir
+        $stmt = $pdo->query("SELECT COUNT(*) FROM households WHERE is_active = 1 AND head_date_of_birth IS NULL");
+        $unknownCount += (int)$stmt->fetchColumn();
+        
+        // Hitung anggota keluarga tanpa tanggal lahir
+        $stmt = $pdo->query("
+            SELECT COUNT(*) FROM household_members hm 
+            INNER JOIN households h ON h.id = hm.household_id 
+            WHERE h.is_active = 1 AND hm.date_of_birth IS NULL
+        ");
+        $unknownCount += (int)$stmt->fetchColumn();
+        $distribution['unknown'] = $unknownCount;
+        
+        // Isi hasil query ke array distribution
+        foreach ($rows as $row) {
+            if (isset($distribution[$row['age_group']])) {
+                $distribution[$row['age_group']] = (int)$row['total'];
+            }
         }
         
-        Response::success(['age_distribution' => $row]);
+        // Hitung total keseluruhan untuk debugging (opsional)
+        $totalPeople = array_sum($distribution) - $distribution['unknown'];
+        
+        Response::success([
+            'age_distribution' => $distribution,
+            'total_people' => $totalPeople,
+            'includes_members' => true  // Indikator bahwa sudah termasuk anggota keluarga
+        ]);
         break;
     }
 
     default:
         Response::error('Unknown stats action.', 400);
 }
+
