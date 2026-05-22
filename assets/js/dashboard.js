@@ -119,41 +119,79 @@ function renderPovertyChart(data) {
 function renderTrendChart(data) {
     destroyChart('trend');
     const rows = data?.trend || [];
-    if (!rows.length) return;
+    if (!rows.length) {
+        const ctx = document.getElementById('chartTrend');
+        if (ctx && ctx.parentElement) {
+            ctx.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:#9ba4b5;"><i class="fas fa-chart-line" style="font-size:24px;margin-bottom:10px;display:block;"></i>Belum ada data pendataan 12 bulan terakhir</div>';
+        }
+        return;
+    }
 
-    const labels = rows.map(r => r.month);
+    // Format bulan (contoh: "2025-01" -> "Jan 2025")
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const labels = rows.map(r => {
+        const [year, month] = r.month.split('-');
+        return `${months[parseInt(month) - 1]} ${year}`;
+    });
+
     const ctx = document.getElementById('chartTrend');
     if (!ctx) return;
 
     charts.trend = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
-            labels,
+            labels: labels,
             datasets: [
                 {
                     label: 'Rumah Baru',
                     data: rows.map(r => r.new_households),
-                    borderColor: '#3a56d4',
-                    backgroundColor: 'rgba(58,86,212,0.08)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#3a56d4',
+                    backgroundColor: '#46b4f4',
+                    borderWidth: 0,
+                    borderRadius: 4,
                 },
                 {
                     label: 'Dibantu',
                     data: rows.map(r => r.aided),
-                    borderColor: '#0b9e73',
-                    backgroundColor: 'rgba(11,158,115,0.06)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#0b9e73',
-                },
+                    backgroundColor: '#7d5ce8',
+                    borderWidth: 0,
+                    borderRadius: 4,
+                }
             ],
         },
         options: {
             ...chartDefaults(),
+            plugins: {
+                ...chartDefaults().plugins,
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { family: "'DM Sans', sans-serif", size: 10 },
+                        color: '#5a6478',
+                        usePointStyle: true,
+                        pointStyleWidth: 8,
+                        boxHeight: 8,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 9 },
+                        maxRotation: 35,
+                        autoSkip: true,
+                        maxTicksLimit: 8
+                    },
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { 
+                        stepSize: 1,
+                        precision: 0,
+                    },
+                }
+            },
         },
     });
 }
@@ -200,7 +238,6 @@ function renderAgeChart(data) {
                 legend: { display: false },
                 title: {
                     display: true,
-                    text: 'Distribusi Usia Tanggungan Keluarga',
                     font: { family: "'DM Sans', sans-serif", size: 11 },
                     color: '#5a6478',
                     padding: { bottom: 10 },

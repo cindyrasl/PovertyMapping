@@ -1,8 +1,6 @@
 <?php
 // ============================================================
 // api/public/report.php — Public report submission & admin mgmt
-// FIX: approve uses subquery for HAVING (MariaDB 10.4 compat)
-//      INSERT column list matches real households schema
 // ============================================================
 declare(strict_types=1);
 require_once __DIR__ . '/../../config/bootstrap.php';
