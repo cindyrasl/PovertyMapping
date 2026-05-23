@@ -336,31 +336,56 @@ switch ("$method:$action") {
         if (!$id) Response::error('ID is required.', 400);
 
         $data = Validator::json();
+        
+        // Validasi: minimal latitude dan longitude harus ada
+        if (!isset($data['latitude']) || !isset($data['longitude'])) {
+            Response::error('Latitude dan longitude diperlukan.', 400);
+        }
+        
         Validator::make($data, [
             'latitude' => 'required|latitude',
             'longitude' => 'required|longitude',
         ])->validate_or_fail();
 
         $pdo = Database::get();
+        
+        // Cek apakah household ada
+        $check = $pdo->prepare("SELECT id, managing_center_id FROM households WHERE id = ? AND is_active = 1");
+        $check->execute([$id]);
+        $existing = $check->fetch();
+        if (!$existing) Response::notFound('Household tidak ditemukan.');
+        
+        // Hitung ulang managing_center_id berdasarkan posisi baru
         $managingId = resolveManagingCenter($pdo, (float)$data['latitude'], (float)$data['longitude']);
-
-        $pdo->prepare("
-            UPDATE households SET
-                latitude = ?,
-                longitude = ?,
-                full_address = COALESCE(NULLIF(?, ''), full_address),
-                managing_center_id = ?
-            WHERE id = ? AND is_active = 1
-        ")->execute([
-            (float)$data['latitude'],
-            (float)$data['longitude'],
-            !empty($data['full_address']) ? Validator::sanitizeString($data['full_address']) : null,
-            $managingId,
-            $id,
-        ]);
-
+        
+        // Update query
+        $sql = "UPDATE households SET latitude = ?, longitude = ?, managing_center_id = ?";
+        $params = [(float)$data['latitude'], (float)$data['longitude'], $managingId];
+        
+        if (!empty($data['full_address'])) {
+            $sql .= ", full_address = ?";
+            $params[] = Validator::sanitizeString($data['full_address']);
+        }
+        
+        $sql .= " WHERE id = ? AND is_active = 1";
+        $params[] = $id;
+        
+        $pdo->prepare($sql)->execute($params);
+        
+        // Ambil data center untuk response
+        $centerName = null;
+        if ($managingId) {
+            $cStmt = $pdo->prepare("SELECT name FROM religious_centers WHERE id = ?");
+            $cStmt->execute([$managingId]);
+            $center = $cStmt->fetch();
+            $centerName = $center ? $center['name'] : null;
+        }
+        
         AuditLog::record('Pindah Posisi Rumah', 'households', $id, null, $data);
-        Response::success(['managing_center_id' => $managingId], 'Posisi diperbarui.');
+        Response::success([
+            'managing_center_id' => $managingId,
+            'center_name' => $centerName
+        ], 'Posisi rumah berhasil diperbarui.');
         break;
     }
 

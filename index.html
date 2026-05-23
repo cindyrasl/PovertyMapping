@@ -358,7 +358,7 @@
                 <div class="form-group"><label>Kelurahan</label><input type="text" id="houseKelurahan" readonly></div>
                 <div class="form-group"><label>Kecamatan</label><input type="text" id="houseKecamatan" readonly></div>
             </div>
-            <div class="form-group"><label>Alamat Lengkap</label><textarea id="houseFullAddress" rows="2" readonly></textarea></div>
+            <div class="form-group"><label>Alamat Lengkap</label><textarea id="houseFullAddress" rows="2" placeholder="Alamat lengkap (dapat diedit manual)" style="background: var(--surface);"></textarea></div>
             <div class="form-row">
                 <div class="form-group"><label>Pusat Pengelola</label><input type="text" id="managingCenterName" readonly placeholder="Otomatis terdeteksi"><input type="hidden" id="managingCenterId"></div>
                 <div class="form-group"><label>Kondisi Rumah</label><select id="houseCondition"><option value="layak">Layak</option><option value="tidak_layak">Tidak Layak</option></select></div>
@@ -384,26 +384,66 @@
         </div>
 
         <div class="form-tab-panel active" id="ftab-identity">
-            <div class="form-group"><label>Nama Kepala Keluarga <span style="color:red;">*</span></label><input type="text" id="houseHeadName" required placeholder="Nama lengkap KK"></div>
-            <div class="form-row">
-                <div class="form-group"><label>NIK KK <span style="color:red;">*</span></label><input type="text" id="houseNIK" maxlength="16" placeholder="16 digit NIK"></div>
-                <div class="form-group"><label>Jenis Kelamin <span style="color:red;">*</span></label><select id="houseGender" required><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div>
+            <div class="form-group"><label>Nama Kepala Keluarga <span style="color:red;">*</span></label><input type="text" id="houseHeadName" required placeholder="Nama lengkap"></div>
+            <div class="field-error" id="errHouseHeadName" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                <i class="fas fa-exclamation-circle"></i> Nama Kepala Keluarga wajib diisi.
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Tanggal Lahir KK <span style="color:red;">*</span></label><input type="date" id="houseDOB" required></div>
-                <div class="form-group"><label>Pendidikan KK <span style="color:red;">*</span></label>
+                <div class="form-group"><label>NIK Kepala Keluarga <span style="color:red;">*</span></label><input type="text" id="houseNIK" maxlength="16" placeholder="16 digit NIK"></div>
+                <div class="field-error" id="errHouseNIK" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> NIK Kepala Keluarga wajib diisi.
+                </div>
+                <div class="form-group"><label>Jenis Kelamin <span style="color:red;">*</span></label><select id="houseGender" required><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div>
+                <div class="field-error" id="errHouseGender" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> Jenis Kelamin wajib diisi.
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Tanggal Lahir Kepala Keluarga <span style="color:red;">*</span></label><input type="date" id="houseDOB" required></div>
+                <div class="field-error" id="errHouseDOB" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> Tanggal Lahir Kepala Keluarga wajib diisi.
+                </div>
+                <div class="form-group"><label>Pendidikan Kepala Keluarga <span style="color:red;">*</span></label>
                     <select id="houseEducation" onchange="recalcPoverty()">
                         <option value="tidak_sekolah">Tidak Sekolah</option><option value="sd" selected>SD</option><option value="smp">SMP</option>
                         <option value="sma">SMA</option><option value="diploma">Diploma</option><option value="sarjana">Sarjana</option><option value="pascasarjana">Pascasarjana</option>
                     </select>
                 </div>
+                <div class="field-error" id="errHouseEducation" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                    <i class="fas fa-exclamation-circle"></i> Pendidikan Kepala Keluarga wajib diisi.
+                </div>
             </div>
-            <div class="form-group"><label>Pekerjaan</label><input type="text" id="houseJob" placeholder="Contoh: Buruh Harian"></div>
+             <div class="form-group">
+                <label>Status Pekerjaan <span style="color:red;">*</span></label>
+                <select id="houseEmploymentStatus" onchange="toggleHouseEmploymentFields()">
+                    <option value="unemployed">Tidak Bekerja / Menganggur</option>
+                    <option value="working">Bekerja</option>
+                    <option value="studying">Sekolah / Kuliah</option>
+                </select>
+            </div>
+            
+            <!-- Field untuk bekerja -->
+            <div class="form-group" id="houseJobGroup" style="display:none;">
+                <label>Nama Pekerjaan</label>
+                <input type="text" id="houseJob" placeholder="Contoh: Buruh Harian">
+            </div>
+            
+            <!-- Field untuk sekolah -->
+            <div class="form-group" id="houseInstitutionGroup" style="display:none;">
+                <label>Nama Sekolah / Universitas</label>
+                <input type="text" id="houseInstitutionName" placeholder="Contoh: SMA Negeri 1">
+            </div>        
         </div>
 
         <div class="form-tab-panel" id="ftab-economic">
             <div class="form-group"><label>Pendapatan/Bulan (Rp) <span style="color:red;">*</span></label><input type="number" id="houseIncome" min="0" value="0" onchange="recalcPoverty()"></div>
-            <div class="form-group"><label>Kepemilikan Lahan</label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
+            <div class="field-error" id="errHouseIncome" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                <i class="fas fa-exclamation-circle"></i> Pendapatan wajib diisi.
+            </div>
+            <div class="form-group"><label>Kepemilikan Lahan <span style="color: red;">*</span></label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
+            <div class="field-error" id="errHouseLandOwnership" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
+                <i class="fas fa-exclamation-circle"></i> Kepemilikan Lahan wajib diisi.
+            </div>
         </div>
 
         <div class="form-tab-panel" id="ftab-aid">
