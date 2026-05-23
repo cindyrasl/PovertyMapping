@@ -136,24 +136,6 @@ label {
 @keyframes spin { to{transform:rotate(360deg)} }
 .spinner { animation:spin 0.8s linear infinite; display:inline-block; }
 
-/* ===== ROLE PILLS ===== */
-.role-hint {
-    display:flex; gap:7px; margin-top:16px; padding-top:14px;
-    border-top:1px solid var(--border-subtle);
-}
-.role-pill {
-    flex:1; padding:10px 8px; border-radius:var(--r-sm);
-    border:1.5px solid var(--border); background:var(--bg);
-    cursor:pointer; transition:all 0.14s; text-align:center;
-    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
-    min-height:var(--touch-min);
-}
-.role-pill:hover  { border-color:var(--accent); background:var(--accent-light); }
-.role-pill.selected { border-color:var(--accent); background:var(--accent-light); }
-.role-pill-icon  { font-size:17px; margin-bottom:5px; }
-.role-pill-label { font-size:10px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; }
-.role-pill-email { font-size:9.5px; color:var(--text-muted); font-family:'DM Mono',monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
 /* ===== PUBLIC LINK ===== */
 .public-link {
     text-align:center; margin-top:14px; font-size:12.5px; color:var(--text-muted);
@@ -164,13 +146,6 @@ label {
 }
 .public-link a:hover { text-decoration:underline; }
 
-/* ===== DIVIDER ===== */
-.divider {
-    display:flex; align-items:center; gap:10px;
-    margin:14px 0; color:var(--text-muted); font-size:11px;
-}
-.divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
-
 /* ===== RESPONSIVE ===== */
 
 /* Phones: full-width, tighter padding */
@@ -180,16 +155,12 @@ label {
     .login-logo { margin-bottom:18px; }
     .login-logo h1 { font-size:17px; }
     .logo-icon { width:46px; height:46px; font-size:19px; }
-    .role-pill-email { font-size:8.5px; }
 }
 
 /* Very small phones */
 @media (max-width:360px) {
     .login-wrap { padding:12px 10px; }
     .card { padding:16px 14px; }
-    .role-hint { gap:5px; }
-    .role-pill { padding:8px 5px; }
-    .role-pill-icon { font-size:15px; }
 }
 
 /* Landscape phones: reduce vertical spacing */
@@ -198,7 +169,6 @@ label {
     .login-logo .logo-icon { margin-bottom:8px; }
     .card { padding:18px 20px; }
     .form-group { margin-bottom:11px; }
-    .role-hint { display:none; } /* hide demo pills in landscape to save space */
 }
 </style>
 </head>
@@ -241,22 +211,6 @@ label {
                 <i class="fas fa-sign-in-alt"></i> Masuk
             </button>
         </form>
-
-        <div class="divider">atau pilih akun demo</div>
-
-        <!-- Quick-fill demo accounts -->
-        <div class="role-hint">
-            <div class="role-pill" onclick="fillCredentials('admin@webgis.local','Admin@12345', this)">
-                <div class="role-pill-icon">🔑</div>
-                <div class="role-pill-label">Admin</div>
-                <div class="role-pill-email">admin@webgis.local</div>
-            </div>
-            <div class="role-pill" onclick="fillCredentials('petugas@webgis.local','Petugas@12345', this)">
-                <div class="role-pill-icon">📋</div>
-                <div class="role-pill-label">Petugas</div>
-                <div class="role-pill-email">petugas@webgis.local</div>
-            </div>
-        </div>
     </div>
 
     <div class="public-link">
@@ -293,16 +247,6 @@ document.getElementById('togglePass').addEventListener('click', () => {
     inp.type   = show ? 'text' : 'password';
     icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
 });
-
-// ---- Quick-fill ----
-function fillCredentials(email, pass, pillEl) {
-    document.getElementById('email').value    = email;
-    document.getElementById('password').value = pass;
-    document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('selected'));
-    pillEl.classList.add('selected');
-    // On mobile, move focus away from form to avoid keyboard
-    document.getElementById('loginBtn').focus();
-}
 
 // ---- Submit ----
 const form    = document.getElementById('loginForm');

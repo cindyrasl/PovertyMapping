@@ -84,18 +84,18 @@ async function loadPendingReports() {
         <tr style="vertical-align:top;">
             <td style="font-size:9.5px;color:#9ba4b5;white-space:nowrap;padding-top:10px;">${dateStr}</td>
             <td style="padding-top:8px;">
-                <div style="font-size:12px;font-weight:700;color:#0f1623;">${rep.head_name || '—'}</div>
+                <div style="font-size:12px;font-weight:700;color:#0f1623;">${escapeHtml(rep.head_name || '—')}</div>
                 ${rep.reporter_name
-                    ? `<div style="font-size:10px;color:#9ba4b5;margin-top:2px;"><i class="fas fa-user" style="font-size:9px;"></i> ${rep.reporter_name}${rep.reporter_phone ? ' · ' + rep.reporter_phone : ''}</div>`
+                    ? `<div style="font-size:10px;color:#9ba4b5;margin-top:2px;"><i class="fas fa-user" style="font-size:9px;"></i> ${escapeHtml(rep.reporter_name)}${rep.reporter_phone ? ' · ' + escapeHtml(rep.reporter_phone) : ''}</div>`
                     : ''}
             </td>
-            <td style="font-size:10.5px;color:#5a6478;max-width:130px;padding-top:10px;">${truncate(rep.address || '—', 38)}</td>
-            <td style="font-size:10.5px;color:#5a6478;max-width:160px;padding-top:10px;">${truncate(rep.description || '—', 60)}</td>
+            <td style="font-size:10.5px;color:#5a6478;max-width:130px;padding-top:10px;">${escapeHtml(truncate(rep.address || '—', 38))}</td>
+            <td style="font-size:10.5px;color:#5a6478;max-width:160px;padding-top:10px;">${escapeHtml(truncate(rep.description || '—', 60))}</td>
             <td style="padding-top:10px;">
                 <span style="padding:3px 9px;border-radius:20px;font-size:9.5px;font-weight:700;
                     background:${st.bg};color:${st.color};white-space:nowrap;">${st.label}</span>
                 ${rep.admin_notes
-                    ? `<div style="font-size:9px;color:#9ba4b5;margin-top:3px;">${truncate(rep.admin_notes, 25)}</div>`
+                    ? `<div style="font-size:9px;color:#9ba4b5;margin-top:3px;">${escapeHtml(truncate(rep.admin_notes, 25))}</div>`
                     : ''}
                 ${rep.converted_household_id
                     ? `<div style="font-size:9px;color:#0b9e73;margin-top:2px;"><i class="fas fa-home"></i> ID: ${rep.converted_household_id}</div>`

@@ -59,10 +59,32 @@ async function refreshCenters() {
 // Override loadAllData untuk memastikan recount
 async function loadAllData() {
     showLoading(true);
-    await Promise.all([loadCenters(), loadHouses(), loadStats()]);
+    
+    const params = {};
+    if (State.povertyFilter) params.poverty_status = State.povertyFilter;
+    if (State.aidFilter) params.aid_status = State.aidFilter;
+    if (State.searchQuery) params.q = State.searchQuery;
+    if (State.conditionFilter) params.house_condition = State.conditionFilter;
+    params.limit = 500;
+
+    const [centersRes, housesRes] = await Promise.all([
+        ApiCenters.list(), 
+        ApiHouses.list(params), 
+        loadStats()
+    ]);
+    
+    if (centersRes.ok && centersRes.data?.success) {
+        State.centers = centersRes.data.data.centers || [];
+    }
+    
+    if (housesRes.ok && housesRes.data?.success) {
+        State.houses = housesRes.data.data.households || [];
+    }
+    
     recountCenterHouseholds(); // ⭐ PASTIKAN HITUNG ULANG
-    renderCenterList();
-    renderHouseList();
+    renderCenters();
+    renderHouses();
+    
     showLoading(false);
 }
 

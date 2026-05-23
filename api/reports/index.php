@@ -108,6 +108,7 @@ switch ("$method:$action") {
     }
 
     case 'POST:update': {
+        requireAuth();
         if (!$id) Response::error('ID is required.', 400);
         $data = Validator::json();
         Validator::make($data, [
@@ -135,6 +136,7 @@ switch ("$method:$action") {
     }
 
     case 'POST:resolve': {
+        requireAuth();
         if (!$id) Response::error('ID is required.', 400);
         $pdo  = Database::get();
         $stmt = $pdo->prepare("UPDATE emergency_reports SET status='resolved', resolved_at=NOW() WHERE id=? AND status NOT IN ('resolved','closed')");
@@ -146,6 +148,7 @@ switch ("$method:$action") {
     }
 
     case 'POST:delete': {
+        requireAdmin();
         if (!$id) Response::error('ID is required.', 400);
         $pdo = Database::get();
         $old = $pdo->prepare('SELECT * FROM emergency_reports WHERE id=?');
