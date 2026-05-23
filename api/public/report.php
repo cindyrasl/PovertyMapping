@@ -1,252 +1,391 @@
 <?php
-// ============================================================
-// api/public/report.php — Public report submission & admin mgmt
-// ============================================================
-declare(strict_types=1);
+/**
+ * api/public/report.php
+ * Public poverty reports — create (lapor.html) + admin CRUD.
+ */
+
+// Matikan semua error reporting ke output
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Bersihkan buffer
+while (ob_get_level()) ob_end_clean();
+ob_start();
+
+// Load bootstrap (sudah include requireAuth() dan requireAdmin())
+if (!file_exists(__DIR__ . '/../../config/bootstrap.php')) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Konfigurasi server tidak lengkap.']);
+    exit;
+}
+
 require_once __DIR__ . '/../../config/bootstrap.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? ($method === 'GET' ? 'list' : 'submit');
+// Pastikan tidak ada output sebelum JSON
+if (ob_get_length()) ob_clean();
+
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$action = $_GET['action'] ?? '';
 $id     = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
-switch ("$method:$action") {
-
-    case 'POST:submit':
-    case 'POST:': {
-        $ip  = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        $pdo = Database::get();
-
-        try {
-            $rateStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM public_reports
-                WHERE ip_address = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ");
-            $rateStmt->execute([$ip]);
-            if ((int)$rateStmt->fetchColumn() >= 3) {
-                Response::error('Terlalu banyak laporan dari IP ini. Coba lagi dalam 1 jam.', 429);
-            }
-        } catch (\Throwable) {}
-
-        $data = Validator::json();
-        Validator::make($data, [
-            'head_name'   => 'required|string|maxlen:150',
-            'address'     => 'required|string',
-            'latitude'    => 'required|latitude',
-            'longitude'   => 'required|longitude',
-            'description' => 'required|string',
-        ])->validate_or_fail();
-
-        $pdo->prepare("
-            INSERT INTO public_reports
-                (reporter_name, reporter_phone, head_name, address,
-                 latitude, longitude, description, status, ip_address)
-            VALUES (?,?,?,?,?,?,?,'pending',?)
-        ")->execute([
-            !empty($data['reporter_name'])  ? Validator::sanitizeString($data['reporter_name'])  : null,
-            !empty($data['reporter_phone']) ? Validator::sanitizeString($data['reporter_phone']) : null,
-            Validator::sanitizeString($data['head_name']),
-            Validator::sanitizeString($data['address']),
-            (float)$data['latitude'],
-            (float)$data['longitude'],
-            Validator::sanitizeString($data['description']),
-            $ip,
-        ]);
-
-        $newId = (int)$pdo->lastInsertId();
-        AuditLog::record('Laporan Publik Masuk', 'public_reports', $newId, null, $data);
-        Response::created(['id' => $newId], 'Laporan berhasil dikirim. Terima kasih atas informasinya.');
-        break;
+try {
+    // POST tanpa action = create (dari lapor.html)
+    if ($method === 'POST' && ($action === '' || $action === 'create')) {
+        handleCreate();
     }
+    // GET list
+    elseif ($method === 'GET' && $action === 'list') {
+        handleList();
+    }
+    // GET show
+    elseif ($method === 'GET' && $action === 'show' && $id) {
+        handleShow($id);
+    }
+    // POST approve (admin) - requireAdmin() dari bootstrap.php
+    elseif ($method === 'POST' && $action === 'approve' && $id) {
+        requireAdmin();
+        handleApprove($id);
+    }
+    // POST reject (admin)
+    elseif ($method === 'POST' && $action === 'reject' && $id) {
+        requireAdmin();
+        handleReject($id);
+    }
+    // POST delete (admin)
+    elseif ($method === 'POST' && $action === 'delete' && $id) {
+        requireAdmin();
+        handleDelete($id);
+    }
+    else {
+        jsonError('Method or action not allowed', 405);
+    }
+} catch (PDOException $e) {
+    error_log('[public/report.php] PDO: ' . $e->getMessage());
+    jsonError('Terjadi kesalahan database. Silakan coba lagi.', 500);
+} catch (Exception $e) {
+    error_log('[public/report.php] ' . $e->getMessage());
+    jsonError('Terjadi kesalahan server.', 500);
+}
 
-    case 'GET:list': {
-        $pdo    = Database::get();
-        $where  = ['1=1'];
-        $params = [];
-
-        if (!empty($_GET['status'])) {
-            if (in_array($_GET['status'], ['pending','approved','rejected'], true)) {
-                $where[]  = 'status = ?';
-                $params[] = $_GET['status'];
-            }
+// ============================================================
+// CREATE — public submission, all fields required
+// ============================================================
+function handleCreate(): void
+{
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    
+    if (!is_array($data)) {
+        jsonError('Data tidak valid.', 400);
+    }
+    
+    $errors = [];
+    
+    // Required fields
+    $required = [
+        'reporter_name' => 'Nama pelapor',
+        'reporter_phone' => 'Nomor telepon',
+        'head_name' => 'Nama kepala keluarga',
+        'address' => 'Alamat',
+        'kelurahan' => 'Kelurahan',
+        'kecamatan' => 'Kecamatan',
+        'description' => 'Deskripsi',
+        'latitude' => 'Latitude',
+        'longitude' => 'Longitude',
+        'severity' => 'Tingkat urgensi'
+    ];
+    
+    foreach ($required as $field => $label) {
+        $value = trim($data[$field] ?? '');
+        if ($value === '') {
+            $errors[$field] = "$label wajib diisi.";
         }
+    }
+    
+    // RT/RW juga required
+    if (trim($data['rt'] ?? '') === '') {
+        $errors['rt'] = 'RT wajib diisi.';
+    }
+    if (trim($data['rw'] ?? '') === '') {
+        $errors['rw'] = 'RW wajib diisi.';
+    }
+    
+    if (!empty($errors)) {
+        $firstError = reset($errors);
+        jsonError($firstError, 422, ['validation_errors' => $errors]);
+    }
+    
+    // Phone validation
+    $phone = preg_replace('/[\s\-\(\)\+]/', '', $data['reporter_phone']);
+    if (!preg_match('/^\d{8,15}$/', $phone)) {
+        jsonError('Nomor telepon tidak valid (8-15 digit).', 422);
+    }
+    
+    // Description min 20 chars
+    if (mb_strlen($data['description']) < 20) {
+        jsonError('Deskripsi minimal 20 karakter.', 422);
+    }
+    
+    // Coordinates
+    $lat = (float)$data['latitude'];
+    $lng = (float)$data['longitude'];
+    if ($lat < -90 || $lat > 90 || $lat == 0) {
+        jsonError('Latitude tidak valid.', 422);
+    }
+    if ($lng < -180 || $lng > 180 || $lng == 0) {
+        jsonError('Longitude tidak valid.', 422);
+    }
+    
+    // Severity validation
+    $allowedSeverity = ['ringan', 'sedang', 'berat', 'kritis'];
+    if (!in_array($data['severity'], $allowedSeverity)) {
+        jsonError('Tingkat urgensi tidak valid.', 422);
+    }
+    
+    // Rate limit
+    $pdo = Database::get();
+    $ip = getClientIP();
+    
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM public_reports WHERE ip_address = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+    $stmt->execute([$ip]);
+    if ((int)$stmt->fetchColumn() >= 5) {
+        jsonError('Terlalu banyak laporan. Coba lagi besok.', 429);
+    }
+    
+    // Sanitize
+    $sanitize = fn($s) => htmlspecialchars(strip_tags(trim($s)), ENT_QUOTES, 'UTF-8');
+    
+    // Insert
+    $stmt = $pdo->prepare("
+        INSERT INTO public_reports 
+        (reporter_name, reporter_phone, rt, rw, head_name, address, kelurahan, kecamatan, 
+         latitude, longitude, description, severity, urgent_need, status, ip_address, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())
+    ");
+    
+    $stmt->execute([
+        $sanitize($data['reporter_name']),
+        $sanitize($data['reporter_phone']),
+        $sanitize($data['rt'] ?? ''),
+        $sanitize($data['rw'] ?? ''),
+        $sanitize($data['head_name']),
+        $sanitize($data['address']),
+        $sanitize($data['kelurahan']),
+        $sanitize($data['kecamatan']),
+        round($lat, 7),
+        round($lng, 7),
+        $sanitize($data['description']),
+        $data['severity'],
+        $sanitize($data['urgent_need'] ?? ''),
+        $ip
+    ]);
+    
+    $newId = (int)$pdo->lastInsertId();
+    
+    jsonSuccess(['id' => $newId], 'Laporan berhasil dikirim. Petugas akan segera memverifikasi.', 201);
+}
 
-        $whereSQL = implode(' AND ', $where);
-        $limit    = min((int)($_GET['limit'] ?? 100), 500);
-        $offset   = max(0, (int)($_GET['offset'] ?? 0));
+// ============================================================
+// LIST
+// ============================================================
+function handleList(): void
+{
+    $pdo = Database::get();
+    $where = ['1=1'];
+    $params = [];
+    
+    if (!empty($_GET['status'])) {
+        $where[] = 'status = ?';
+        $params[] = $_GET['status'];
+    }
+    
+    $whereSQL = implode(' AND ', $where);
+    $limit = min((int)($_GET['limit'] ?? 100), 500);
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    
+    $stmt = $pdo->prepare("
+        SELECT * FROM public_reports 
+        WHERE $whereSQL 
+        ORDER BY FIELD(status, 'pending', 'approved', 'rejected'), created_at DESC 
+        LIMIT $limit OFFSET $offset
+    ");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $cnt = $pdo->prepare("SELECT COUNT(*) FROM public_reports WHERE $whereSQL");
+    $cnt->execute($params);
+    
+    jsonSuccess(['reports' => $rows, 'total' => (int)$cnt->fetchColumn()]);
+}
 
+// ============================================================
+// SHOW
+// ============================================================
+function handleShow(int $id): void
+{
+    $pdo = Database::get();
+    $stmt = $pdo->prepare("SELECT * FROM public_reports WHERE id = ?");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$row) {
+        jsonError('Laporan tidak ditemukan.', 404);
+    }
+    
+    jsonSuccess($row);
+}
+
+// ============================================================
+// APPROVE
+// ============================================================
+function handleApprove(int $id): void
+{
+    $pdo = Database::get();
+    
+    // Get report
+    $stmt = $pdo->prepare("SELECT * FROM public_reports WHERE id = ? AND status = 'pending'");
+    $stmt->execute([$id]);
+    $report = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$report) {
+        jsonError('Laporan tidak ditemukan atau sudah diproses.', 404);
+    }
+    
+    $data = json_decode(file_get_contents('php://input'), true) ?? [];
+    
+    $pdo->beginTransaction();
+    
+    try {
+        // Create household
+        $income = (int)($data['income'] ?? 0);
+        $condition = $data['house_condition'] ?? 'tidak_layak';
+        $education = $data['education'] ?? 'sd';
+        
+        // Simple poverty score
+        $score = 0;
+        if ($income < 500000) $score += 30;
+        elseif ($income < 1500000) $score += 20;
+        elseif ($income < 3000000) $score += 10;
+        if ($condition === 'tidak_layak') $score += 20;
+        
+        $povertyStatus = match(true) {
+            $score >= 60 => 'sangat_miskin',
+            $score >= 40 => 'miskin',
+            $score >= 20 => 'rentan_miskin',
+            default => 'terdata'
+        };
+        
         $stmt = $pdo->prepare("
-            SELECT pr.*, h.id AS converted_id
-            FROM public_reports pr
-            LEFT JOIN households h ON h.id = pr.converted_household_id
-            WHERE $whereSQL
-            ORDER BY FIELD(pr.status,'pending','approved','rejected'), pr.created_at DESC
-            LIMIT $limit OFFSET $offset
+            INSERT INTO households 
+            (full_address, kelurahan, kecamatan, latitude, longitude, head_name, 
+             head_education, head_monthly_income, house_condition, land_ownership,
+             poverty_score, poverty_status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'numpang', ?, ?, ?)
         ");
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll();
-
-        $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM public_reports WHERE $whereSQL");
-        $cntStmt->execute($params);
-
-        foreach ($rows as &$r) {
-            $r['latitude']  = (float)$r['latitude'];
-            $r['longitude'] = (float)$r['longitude'];
-        }
-        unset($r);
-
-        Response::success(['reports' => $rows, 'total' => (int)$cntStmt->fetchColumn()]);
-        break;
-    }
-
-    case 'POST:approve': {
-        $user = requireAuth();
-
-        if (!$id) Response::error('ID is required.', 400);
-
-        $pdo  = Database::get();
-        $stmt = $pdo->prepare("SELECT * FROM public_reports WHERE id=? AND status='pending'");
-        $stmt->execute([$id]);
-        $report = $stmt->fetch();
-        if (!$report) Response::error('Laporan tidak ditemukan atau sudah diproses.', 404);
-
-        $data      = Validator::json();
-        $income    = (int)($data['income']     ?? 0);
-        $dependents= (int)($data['dependents'] ?? 1);
-        $condition = $data['house_condition']   ?? 'tidak_layak';
-        $education = $data['education']         ?? 'sd';
-        $landOwn   = $data['land_ownership']    ?? 'numpang';
-
-        // Resolve center — FIX: subquery avoids MariaDB HAVING-alias bug
-        $managingId = null;
-        $cStmt = $pdo->prepare("
-            SELECT sub.id FROM (
-                SELECT rc.id, rc.radius,
-                    (6371000 * ACOS(
-                        COS(RADIANS(:lat1)) * COS(RADIANS(rc.latitude)) *
-                        COS(RADIANS(rc.longitude) - RADIANS(:lng)) +
-                        SIN(RADIANS(:lat2)) * SIN(RADIANS(rc.latitude))
-                    )) AS dist
-                FROM religious_centers rc WHERE rc.is_active = 1
-            ) sub
-            WHERE sub.dist <= sub.radius
-            ORDER BY sub.dist ASC LIMIT 1
-        ");
-        $cStmt->execute([
-            ':lat1' => (float)$report['latitude'],
-            ':lng'  => (float)$report['longitude'],
-            ':lat2' => (float)$report['latitude'],
-        ]);
-        $cRow = $cStmt->fetch();
-        if ($cRow) $managingId = (int)$cRow['id'];
-
-        $povertyStatus = calcPoverty($income, $dependents, $condition, $education, $landOwn);
-
-        // Compute a simple score integer to store in poverty_score column (schema: NOT NULL)
-        $povertyScore = calcPovertyScore($income, $dependents, $condition, $education, $landOwn);
-
-        // INSERT matches actual webgis5 households schema exactly
-        $pdo->prepare("
-            INSERT INTO households
-                (head_name, nik, address, latitude, longitude,
-                 dependents, income, house_condition, land_ownership, education,
-                 poverty_score, poverty_status, aid_status, managing_center_id,
-                 description, is_active)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'not_yet',?,?,1)
-        ")->execute([
-            Validator::sanitizeString($report['head_name']),
-            '',  // nik: public reports have no NIK; NOT NULL schema → empty string
-            Validator::sanitizeString($report['address']),
-            (float)$report['latitude'],
-            (float)$report['longitude'],
-            $dependents,
+        
+        $stmt->execute([
+            $report['address'],
+            $report['kelurahan'] ?? '',
+            $report['kecamatan'] ?? '',
+            $report['latitude'],
+            $report['longitude'],
+            $report['head_name'],
+            $education,
             $income,
             $condition,
-            $landOwn,
-            $education,
-            $povertyScore,
+            $score,
             $povertyStatus,
-            $managingId,
-            Validator::sanitizeString('Dari laporan publik #' . $id . '. ' . ($report['description'] ?? '')),
+            'Dari laporan publik #' . $id
         ]);
-
-        $newHouseholdId = (int)$pdo->lastInsertId();
-
-        $pdo->prepare("
-            UPDATE public_reports
-            SET status='approved', reviewed_at=NOW(), admin_notes=?, converted_household_id=?
-            WHERE id=?
-        ")->execute([
-            !empty($data['admin_notes']) ? Validator::sanitizeString($data['admin_notes']) : null,
-            $newHouseholdId,
-            $id,
-        ]);
-
-        AuditLog::record('Setujui Laporan Publik', 'public_reports', $id, $report, ['household_id' => $newHouseholdId]);
-        Response::success([
-            'household_id'   => $newHouseholdId,
-            'poverty_status' => $povertyStatus,
-        ], 'Laporan disetujui. Rumah tangga baru telah ditambahkan ke peta.');
-        break;
-    }
-
-    case 'POST:reject': {
-        $user = requireAuth();
         
-        if (!$id) Response::error('ID is required.', 400);
-        $pdo = Database::get();
-        $chk = $pdo->prepare("SELECT id FROM public_reports WHERE id=? AND status='pending'");
-        $chk->execute([$id]);
-        if (!$chk->fetch()) Response::error('Laporan tidak ditemukan atau sudah diproses.', 404);
-        $data = Validator::json();
-        $pdo->prepare("UPDATE public_reports SET status='rejected', reviewed_at=NOW(), admin_notes=? WHERE id=?")
-            ->execute([
-                !empty($data['admin_notes']) ? Validator::sanitizeString($data['admin_notes']) : null,
-                $id,
-            ]);
-        AuditLog::record('Tolak Laporan Publik', 'public_reports', $id);
-        Response::success(null, 'Laporan ditolak.');
-        break;
+        $householdId = (int)$pdo->lastInsertId();
+        
+        // Update report
+        $stmt = $pdo->prepare("
+            UPDATE public_reports 
+            SET status = 'approved', converted_household_id = ?, admin_notes = ?, reviewed_at = NOW() 
+            WHERE id = ?
+        ");
+        $stmt->execute([$householdId, $data['admin_notes'] ?? null, $id]);
+        
+        $pdo->commit();
+        
+        jsonSuccess(['household_id' => $householdId], 'Laporan disetujui.');
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
     }
-
-    case 'POST:delete': {
-        if (!$id) Response::error('ID is required.', 400);
-        $pdo = Database::get();
-        $old = $pdo->prepare('SELECT * FROM public_reports WHERE id=?');
-        $old->execute([$id]);
-        $row = $old->fetch();
-        if (!$row) Response::notFound('Laporan tidak ditemukan.');
-        $pdo->prepare('DELETE FROM public_reports WHERE id=?')->execute([$id]);
-        AuditLog::record('Hapus Laporan Publik', 'public_reports', $id, $row);
-        Response::success(null, 'Laporan dihapus.');
-        break;
-    }
-
-    default:
-        Response::methodNotAllowed();
 }
 
-function calcPoverty(int $income, int $dep, string $cond, string $edu, string $land): string
+// ============================================================
+// REJECT
+// ============================================================
+function handleReject(int $id): void
 {
-    $pts  = 0;
-    $pc   = $income / max(1, $dep);
-    if ($pc < 400_000) $pts += 3; elseif ($pc < 700_000) $pts += 2; elseif ($pc < 1_200_000) $pts += 1;
-    if ($dep >= 7) $pts += 3; elseif ($dep >= 5) $pts += 2; elseif ($dep >= 4) $pts += 1;
-    if ($cond === 'tidak_layak') $pts += 3;
-    $pts += ['tidak_sekolah' => 3, 'sd' => 2, 'smp' => 1][$edu] ?? 0;
-    if ($land === 'numpang') $pts += 2; elseif ($land === 'sewa') $pts += 1;
-    return match(true) { $pts >= 7 => 'sangat_miskin', $pts >= 4 => 'miskin', $pts >= 1 => 'rentan_miskin', default => 'terdata' };
+    $pdo = Database::get();
+    $data = json_decode(file_get_contents('php://input'), true) ?? [];
+    
+    $stmt = $pdo->prepare("UPDATE public_reports SET status = 'rejected', admin_notes = ?, reviewed_at = NOW() WHERE id = ? AND status = 'pending'");
+    $stmt->execute([$data['admin_notes'] ?? null, $id]);
+    
+    if ($stmt->rowCount() === 0) {
+        jsonError('Laporan tidak ditemukan atau sudah diproses.', 404);
+    }
+    
+    jsonSuccess(null, 'Laporan ditolak.');
 }
 
-/** Map indicator severity points to a 0-100 score for poverty_score column */
-function calcPovertyScore(int $income, int $dep, string $cond, string $edu, string $land): int
+// ============================================================
+// DELETE
+// ============================================================
+function handleDelete(int $id): void
 {
-    $pts  = 0;
-    $pc   = $income / max(1, $dep);
-    if ($pc < 400_000) $pts += 3; elseif ($pc < 700_000) $pts += 2; elseif ($pc < 1_200_000) $pts += 1;
-    if ($dep >= 7) $pts += 3; elseif ($dep >= 5) $pts += 2; elseif ($dep >= 4) $pts += 1;
-    if ($cond === 'tidak_layak') $pts += 3;
-    $pts += ['tidak_sekolah' => 3, 'sd' => 2, 'smp' => 1][$edu] ?? 0;
-    if ($land === 'numpang') $pts += 2; elseif ($land === 'sewa') $pts += 1;
-    // Scale: max pts = 14, map to 0-100
-    return (int)min(100, round(($pts / 14) * 100));
+    $pdo = Database::get();
+    $stmt = $pdo->prepare("DELETE FROM public_reports WHERE id = ?");
+    $stmt->execute([$id]);
+    
+    if ($stmt->rowCount() === 0) {
+        jsonError('Laporan tidak ditemukan.', 404);
+    }
+    
+    jsonSuccess(null, 'Laporan dihapus.');
+}
+
+// ============================================================
+// HELPERS (Hanya fungsi yang tidak ada di bootstrap.php)
+// ============================================================
+
+// getClientIP - tidak ada di bootstrap, aman didefinisikan
+function getClientIP(): string
+{
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    return trim(explode(',', $ip)[0]);
+}
+
+// jsonSuccess dan jsonError - fungsi custom untuk response JSON
+function jsonSuccess($data, string $message = 'OK', int $code = 200): void
+{
+    http_response_code($code);
+    echo json_encode([
+        'success' => true,
+        'message' => $message,
+        'data' => $data
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function jsonError(string $message, int $code = 400, array $extra = []): void
+{
+    http_response_code($code);
+    $response = ['success' => false, 'message' => $message];
+    if (!empty($extra)) {
+        $response = array_merge($response, $extra);
+    }
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
+    exit;
 }
