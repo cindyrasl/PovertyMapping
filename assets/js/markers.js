@@ -7,8 +7,8 @@
 // UTILITY FUNCTIONS
 // ====================================================================
 function escapeHtml(str) {
-    if (!str) return '';
-    return str
+    if (str === null || str === undefined) return '';
+    return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -63,7 +63,16 @@ function renderCenters() {
         return true;
     });
 
-    filtered.forEach(center => addCenterMarker(center));
+    filtered.forEach(center => {
+        if (!center._marker) {
+            addCenterMarker(center);
+        } else {
+            layerCenters.addLayer(center._marker);
+            if (radiusCircles[center.id]) {
+                radiusCircles[center.id].addTo(MAP);
+            }
+        }
+    });
     updateLayerCounts();
     renderCenterList();
 }
@@ -340,7 +349,23 @@ function renderHouses() {
         return true;
     });
 
-    filtered.forEach(h => addHouseMarker(h));
+    filtered.forEach(h => {
+        if (!h._marker) {
+            addHouseMarker(h);
+        } else {
+            // Update color if radius status changed
+            const newColor = getHouseMarkerColor(h.latitude, h.longitude);
+            if (h._marker._houseColor !== newColor) {
+                h._marker._houseColor = newColor;
+                h._marker.setIcon(L.divIcon({
+                    html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
+                    iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+                    className: '',
+                }));
+            }
+            layerHouses.addLayer(h._marker);
+        }
+    });
     updateLayerCounts();
     renderHouseList(filtered);
 }
@@ -393,10 +418,6 @@ function recountCenterHouseholds() {
         center.household_count = count;
         center.households_in_radius = householdsInRadius.slice(0, 10); // Simpan 10 terdekat
     });
-    
-    // Update UI
-    renderCenterList();
-    updateLayerCounts();
 }
 
 function getHouseMarkerColor(lat, lng) {
@@ -418,9 +439,6 @@ function updateAllHouseColors() {
             }
         }
     });
-    recountCenterHouseholds();
-    renderCenterList();
-    updateLayerCounts();
 }
 
 // assets/js/markers.js — showHousePopup (redesigned popup)
