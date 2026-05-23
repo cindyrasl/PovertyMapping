@@ -436,14 +436,8 @@
         </div>
 
         <div class="form-tab-panel" id="ftab-economic">
-            <div class="form-group"><label>Pendapatan/Bulan (Rp) <span style="color:red;">*</span></label><input type="number" id="houseIncome" min="0" value="0" onchange="recalcPoverty()"></div>
-            <div class="field-error" id="errHouseIncome" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
-                <i class="fas fa-exclamation-circle"></i> Pendapatan wajib diisi.
-            </div>
-            <div class="form-group"><label>Kepemilikan Lahan <span style="color: red;">*</span></label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
-            <div class="field-error" id="errHouseLandOwnership" style="display: none; font-size: 11px; color: var(--danger); margin-top: 4px;">
-                <i class="fas fa-exclamation-circle"></i> Kepemilikan Lahan wajib diisi.
-            </div>
+            <div class="form-group"><label>Pendapatan/Bulan (Rp)</label><input type="number" id="houseIncome" min="0" value="0" onchange="recalcPoverty()"></div>
+            <div class="form-group"><label>Kepemilikan Lahan</label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
         </div>
 
         <div class="form-tab-panel" id="ftab-aid">

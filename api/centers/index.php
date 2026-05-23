@@ -7,12 +7,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 $id     = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
-function sendJSON($data, $status = 200) {
-    http_response_code($status);
-    header('Content-Type: application/json');
-    echo json_encode($data);
-    exit;
-}
+// sendJSON function removed in favor of Response::success and Response::error
 
 try {
     switch ("$method:$action") {
@@ -78,15 +73,12 @@ try {
             }
             unset($r);
 
-            sendJSON([
-                'success' => true,
-                'data' => ['centers' => $rows, 'total' => count($rows)]
-            ]);
+            Response::success(['centers' => $rows, 'total' => count($rows)]);
             break;
         }
 
         case 'GET:show': {
-            if (!$id) sendJSON(['success' => false, 'message' => 'ID required'], 400);
+            if (!$id) Response::error('ID required', 400);
             
             $pdo = Database::get();
             $stmt = $pdo->prepare("
@@ -97,14 +89,14 @@ try {
             $row = $stmt->fetch();
             
             if (!$row) {
-                sendJSON(['success' => false, 'message' => 'Not found'], 404);
+                Response::notFound('Not found');
             }
             
             $row['latitude'] = (float)$row['latitude'];
             $row['longitude'] = (float)$row['longitude'];
             $row['radius'] = (int)$row['radius'];
             
-            sendJSON(['success' => true, 'data' => $row]);
+            Response::success($row);
             break;
         }
 
@@ -114,7 +106,7 @@ try {
             $km = min(50, (float)($_GET['km'] ?? 5));
             
             if ($lat === 0.0 && $lng === 0.0) {
-                sendJSON(['success' => false, 'message' => 'lat and lng required'], 400);
+                Response::error('lat and lng required', 400);
             }
             
             $pdo = Database::get();
@@ -144,12 +136,12 @@ try {
             }
             unset($r);
             
-            sendJSON(['success' => true, 'data' => ['centers' => $rows]]);
+            Response::success(['centers' => $rows]);
             break;
         }
 
         case 'GET:coverage': {
-            if (!$id) sendJSON(['success' => false, 'message' => 'ID required'], 400);
+            if (!$id) Response::error('ID required', 400);
             
             $pdo = Database::get();
             $center = $pdo->prepare("SELECT * FROM religious_centers WHERE id = ? AND is_active = 1");
@@ -157,7 +149,7 @@ try {
             $c = $center->fetch();
             
             if (!$c) {
-                sendJSON(['success' => false, 'message' => 'Center not found'], 404);
+                Response::notFound('Center not found');
             }
             
             $stmt = $pdo->prepare("
@@ -188,18 +180,16 @@ try {
                 return $a['distance_m'] <=> $b['distance_m'];
             });
             
-            sendJSON([
-                'success' => true,
-                'data' => [
-                    'center' => $c,
-                    'households' => $households,
-                    'count' => count($households)
-                ]
+            Response::success([
+                'center' => $c,
+                'households' => $households,
+                'count' => count($households)
             ]);
             break;
         }
 
         case 'POST:create': {
+            requireAuth();
             $data = Validator::json();
             
             $pdo = Database::get();
@@ -223,12 +213,13 @@ try {
             
             $newId = (int)$pdo->lastInsertId();
             AuditLog::record('Tambah Tempat Ibadah', 'religious_centers', $newId, null, $data);
-            sendJSON(['success' => true, 'data' => ['id' => $newId]], 201);
+            Response::created(['id' => $newId], 'Center created');
             break;
         }
 
         case 'POST:update': {
-            if (!$id) sendJSON(['success' => false, 'message' => 'ID required'], 400);
+            requireAuth();
+            if (!$id) Response::error('ID required', 400);
             
             $data = Validator::json();
             
@@ -238,7 +229,7 @@ try {
             $oldRow = $old->fetch();
             
             if (!$oldRow) {
-                sendJSON(['success' => false, 'message' => 'Not found'], 404);
+                Response::notFound('Not found');
             }
             
             $stmt = $pdo->prepare("
@@ -262,12 +253,13 @@ try {
             ]);
             
             AuditLog::record('Update Tempat Ibadah', 'religious_centers', $id, $oldRow, $data);
-            sendJSON(['success' => true, 'message' => 'Updated']);
+            Response::success(null, 'Updated');
             break;
         }
 
         case 'POST:patch': {
-            if (!$id) sendJSON(['success' => false, 'message' => 'ID required'], 400);
+            requireAuth();
+            if (!$id) Response::error('ID required', 400);
             
             $data = Validator::json();
             $fields = [];
@@ -289,7 +281,7 @@ try {
             }
             
             if (empty($fields)) {
-                sendJSON(['success' => false, 'message' => 'No fields to update'], 400);
+                Response::error('No fields to update', 400);
             }
             
             $params[] = $id;
@@ -299,12 +291,13 @@ try {
             $pdo->prepare($sql)->execute($params);
             
             AuditLog::record('Geser/Resize Tempat Ibadah', 'religious_centers', $id, null, $data);
-            sendJSON(['success' => true, 'message' => 'Patched']);
+            Response::success(null, 'Patched');
             break;
         }
 
         case 'POST:delete': {
-            if (!$id) sendJSON(['success' => false, 'message' => 'ID required'], 400);
+            requireAdmin();
+            if (!$id) Response::error('ID required', 400);
             
             $pdo = Database::get();
             $old = $pdo->prepare("SELECT * FROM religious_centers WHERE id = ? AND is_active = 1");
@@ -312,25 +305,21 @@ try {
             $oldRow = $old->fetch();
             
             if (!$oldRow) {
-                sendJSON(['success' => false, 'message' => 'Not found'], 404);
+                Response::notFound('Not found');
             }
             
             $pdo->prepare("UPDATE religious_centers SET is_active = 0 WHERE id = ?")->execute([$id]);
             AuditLog::record('Hapus Tempat Ibadah', 'religious_centers', $id, $oldRow);
-            sendJSON(['success' => true, 'message' => 'Deleted']);
+            Response::success(null, 'Deleted');
             break;
         }
 
         default:
-            sendJSON(['success' => false, 'message' => 'Method not allowed'], 405);
+            Response::methodNotAllowed();
     }
 } catch (Exception $e) {
-    sendJSON([
-        'success' => false, 
-        'message' => $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
-    ], 500);
+    $message = APP_DEBUG ? $e->getMessage() : 'Internal Server Error';
+    Response::error($message, 500);
 }
 
 function haversineDistance($lat1, $lon1, $lat2, $lon2) {
