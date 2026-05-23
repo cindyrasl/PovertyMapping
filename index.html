@@ -384,7 +384,7 @@
         </div>
 
         <div class="form-tab-panel active" id="ftab-identity">
-            <div class="form-group"><label>Nama Kepala Keluarga <span style="color:red;">*</span></label><input type="text" id="houseHeadName" required placeholder="Nama lengkap KK"></div>
+            <div class="form-group"><label>Nama Kepala Keluarga <span style="color:red;">*</span></label><input type="text" id="houseHeadName" required placeholder="Nama lengkap"></div>
             <div class="form-row">
                 <div class="form-group"><label>NIK KK <span style="color:red;">*</span></label><input type="text" id="houseNIK" maxlength="16" placeholder="16 digit NIK"></div>
                 <div class="form-group"><label>Jenis Kelamin <span style="color:red;">*</span></label><select id="houseGender" required><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div>
@@ -398,12 +398,12 @@
                     </select>
                 </div>
             </div>
-            <div class="form-group"><label>Pekerjaan</label><input type="text" id="houseJob" placeholder="Contoh: Buruh Harian"></div>
+            <div class="form-group"><label>Pekerjaan <span style="color: red;">*</span></label><input type="text" id="houseJob" placeholder="Contoh: Buruh Harian"></div>
         </div>
 
         <div class="form-tab-panel" id="ftab-economic">
             <div class="form-group"><label>Pendapatan/Bulan (Rp) <span style="color:red;">*</span></label><input type="number" id="houseIncome" min="0" value="0" onchange="recalcPoverty()"></div>
-            <div class="form-group"><label>Kepemilikan Lahan</label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
+            <div class="form-group"><label>Kepemilikan Lahan <span style="color: red;">*</span></label><select id="houseLandOwnership"><option value="milik">Milik Sendiri</option><option value="sewa">Sewa</option><option value="numpang">Numpang</option><option value="lainnya">Lainnya</option></select></div>
         </div>
 
         <div class="form-tab-panel" id="ftab-aid">
