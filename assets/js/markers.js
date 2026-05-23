@@ -403,69 +403,6 @@ function getHouseMarkerColor(lat, lng) {
     return isHouseInsideAnyRadius(lat, lng) ? '#d63230' : '#0b9e73';
 }
 
-function addHouseMarker(h) {
-    const insideRadius = isHouseInsideAnyRadius(h.latitude, h.longitude);
-    const color = insideRadius ? '#d63230' : '#0b9e73';
-
-    const marker = L.marker([h.latitude, h.longitude], {
-        icon: L.divIcon({
-            html: `<div class="custom-marker-house" style="background:${color};"><i class="fas fa-home"></i></div>`,
-            iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
-            className: '',
-        }),
-        title: h.head_name,
-        draggable: true,
-    });
-
-    marker._houseColor = color;
-
-    marker.on('dragstart', function() { dragInProgress = true; marker.closePopup(); marker.setZIndexOffset(1000); });
-    marker.on('drag', function(e) {
-        const pos = marker.getLatLng();
-        const newColor = getHouseMarkerColor(pos.lat, pos.lng);
-        if (marker._houseColor !== newColor) {
-            marker._houseColor = newColor;
-            marker.setIcon(L.divIcon({
-                html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-                iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
-                className: '',
-            }));
-        }
-    });
-    marker.on('dragend', async function(e) {
-        dragInProgress = false;
-        marker.setZIndexOffset(0);
-        const pos = marker.getLatLng();
-        const lat = pos.lat, lng = pos.lng;
-        h.latitude = lat; h.longitude = lng;
-        const newColor = getHouseMarkerColor(lat, lng);
-        marker._houseColor = newColor;
-        marker.setIcon(L.divIcon({
-            html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-            iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
-            className: '',
-        }));
-        let newAddress = h.full_address || h.address;
-        try { newAddress = await reverseGeocode(lat, lng); h.full_address = newAddress; } catch (err) {}
-        try {
-            const r = await ApiHouses.patch(h.id, { latitude: lat, longitude: lng, full_address: newAddress });
-            if (r.ok && r.data?.success) {
-                if (r.data.data?.managing_center_id) h.managing_center_id = r.data.data.managing_center_id;
-                showToast('Posisi rumah diperbarui.', 'success');
-                recountCenterHouseholds();
-                loadStats();
-                renderHouseList();
-                renderCenterList();
-                updateLayerCounts();
-            } else showToast('Gagal menyimpan posisi.', 'error');
-        } catch (err) { showToast('Gagal menyimpan posisi.', 'error'); }
-        showHousePopup(marker, h);
-    });
-    marker.on('click', () => showHousePopup(marker, h));
-    layerHouses.addLayer(marker);
-    h._marker = marker;
-}
-
 function updateAllHouseColors() {
     State.houses.forEach(h => {
         if (h._marker) {
@@ -481,6 +418,9 @@ function updateAllHouseColors() {
             }
         }
     });
+    recountCenterHouseholds();
+    renderCenterList();
+    updateLayerCounts();
 }
 
 // assets/js/markers.js — showHousePopup (redesigned popup)
@@ -747,30 +687,134 @@ function addHouseMarker(h) {
 
     marker._houseColor = color;
     marker._houseData = h;
+    marker._originalId = h.id;
 
-    // ... (drag handlers tetap sama) ...
+    // Dragstart
+    marker.on('dragstart', function() {
+        dragInProgress = true;
+        marker.closePopup();
+        marker.setZIndexOffset(1000);
+    });
 
-    // ⭐ PERBAIKAN: Saat klik, muat data fresh dari API
+    // Drag - update color live
+    marker.on('drag', function(e) {
+        const pos = marker.getLatLng();
+        const newColor = getHouseMarkerColor(pos.lat, pos.lng);
+        if (marker._houseColor !== newColor) {
+            marker._houseColor = newColor;
+            marker.setIcon(L.divIcon({
+                html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
+                iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+                className: '',
+            }));
+        }
+    });
+
+    marker.on('dragend', async function(e) {
+        dragInProgress = false;
+        marker.setZIndexOffset(0);
+        
+        const pos = marker.getLatLng();
+        const lat = pos.lat, lng = pos.lng;
+        
+        // Update local data
+        h.latitude = lat;
+        h.longitude = lng;
+        
+        // Update warna marker
+        const newColor = getHouseMarkerColor(lat, lng);
+        marker._houseColor = newColor;
+        marker.setIcon(L.divIcon({
+            html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
+            iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+            className: '',
+        }));
+        
+        // Reverse geocode untuk dapat alamat baru
+        let newAddress = h.full_address || h.address;
+        try {
+            newAddress = await reverseGeocode(lat, lng);
+            h.full_address = newAddress;
+        } catch (err) {}
+        
+        // ⭐ SAVE ke database via API
+        showLoading(true);
+        try {
+            const r = await ApiHouses.patch(h.id, { 
+                latitude: lat, 
+                longitude: lng, 
+                full_address: newAddress 
+            });
+            
+            if (r.ok && r.data?.success) {
+                if (r.data.data?.managing_center_id) {
+                    h.managing_center_id = r.data.data.managing_center_id;
+                    const center = State.centers.find(c => c.id == r.data.data.managing_center_id);
+                    if (center) h.center_name = center.name;
+                }
+                showToast('Posisi rumah berhasil diperbarui.', 'success');
+                
+                // ⭐⭐⭐ URUTAN YANG BENAR - UPDATE STATE DULU ⭐⭐⭐
+                
+                // 1. UPDATE data di State (HARUS PERTAMA)
+                const index = State.houses.findIndex(hi => hi.id === h.id);
+                if (index !== -1) {
+                    State.houses[index] = h;
+                }
+                
+                // 2. Hitung ulang jumlah rumah per center (membaca dari State.houses yang sudah diupdate)
+                recountCenterHouseholds();
+                
+                // 3. Update warna semua marker rumah (yang mungkin berubah status radius)
+                updateAllHouseColors();
+                
+                // 4. Update tampilan sidebar
+                renderCenterList();
+                renderHouseList();
+                updateLayerCounts();
+                
+                // 5. Update statistik dashboard (ambil data fresh dari server)
+                await loadStats();
+                
+                // 6. Refresh popup jika terbuka
+                if (marker.isPopupOpen()) {
+                    await showHousePopup(marker, h, true);
+                }
+            } else {
+                showToast(r.data?.message || 'Gagal menyimpan posisi.', 'error');
+                // Kembalikan ke posisi lama jika gagal
+                marker.setLatLng([h.latitude, h.longitude]);
+            }
+        } catch (err) {
+            showToast('Gagal menyimpan posisi: ' + err.message, 'error');
+            marker.setLatLng([h.latitude, h.longitude]);
+        } finally {
+            showLoading(false);
+        }
+        
+        // Tampilkan popup dengan data terbaru (jika belum terbuka)
+        if (!marker.isPopupOpen()) {
+            await showHousePopup(marker, h, true);
+        }
+    });
+        
+    // Click handler dengan loading state
     marker.on('click', async () => {
-        // Tampilkan loading state di popup sementara
         const loadingPopup = L.popup()
             .setLatLng(marker.getLatLng())
             .setContent('<div style="padding: 20px; text-align: center;"><i class="fas fa-circle-notch fa-spin"></i> Memuat data...</div>')
             .openPopup();
         
-        // Load data fresh dari API
         try {
             const r = await ApiHouses.show(h.id);
             if (r.ok && r.data?.success) {
                 const freshData = r.data.data;
-                // Update data di State
                 marker._houseData = freshData;
                 const index = State.houses.findIndex(hh => hh.id === freshData.id);
                 if (index !== -1) {
                     State.houses[index] = freshData;
                     State.houses[index]._marker = marker;
                 }
-                // Tampilkan popup dengan data fresh
                 await showHousePopup(marker, freshData);
             } else {
                 loadingPopup.setContent('<div style="padding: 20px; text-align: center; color: var(--danger);">Gagal memuat data</div>');
