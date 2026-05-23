@@ -210,6 +210,11 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
         document.getElementById('houseLandOwnership').value = 'milik';
         document.getElementById('houseDescription').value = '';
         document.getElementById('houseAidStatus').value = 'not_yet';
+        document.getElementById('houseEmploymentStatus').value = 'unemployed';
+        document.getElementById('houseJobGroup').style.display = 'none';
+        document.getElementById('houseInstitutionGroup').style.display = 'none';
+        document.getElementById('houseJob').value = '';
+        document.getElementById('houseInstitutionName').value = '';
         
         // Reset family members display
         const familyContainer = document.getElementById('familyMembersList');
@@ -284,8 +289,6 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
         
         const h = r.data.data;
         
-        // ⭐ Isi form dengan data dari API - SESUAIKAN DENGAN STRUKTUR BARU
-        
         // Informasi Alamat
         if (document.getElementById('houseRt')) 
             document.getElementById('houseRt').value = h.rt || '';
@@ -295,9 +298,13 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
             document.getElementById('houseKelurahan').value = h.kelurahan || '';
         if (document.getElementById('houseKecamatan')) 
             document.getElementById('houseKecamatan').value = h.kecamatan || '';
-        if (document.getElementById('houseFullAddress')) 
+        if (document.getElementById('houseFullAddress')) {
             document.getElementById('houseFullAddress').value = h.full_address || h.address || '';
-        
+            // Hapus readonly attribute jika ada
+            document.getElementById('houseFullAddress').removeAttribute('readonly');
+            // Set background ke surface (tidak readonly)
+            document.getElementById('houseFullAddress').style.background = 'var(--surface)';
+        }
         // Koordinat
         if (document.getElementById('houseLat')) 
             document.getElementById('houseLat').value = h.latitude;
@@ -343,6 +350,17 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
             document.getElementById('houseJob').value = h.head_job_name || h.job || '';
         if (document.getElementById('houseIncome')) 
             document.getElementById('houseIncome').value = h.head_monthly_income || h.income || 0;
+        if (document.getElementById('houseEmploymentStatus')) {
+            const empStatus = h.head_employment_status || 'unemployed';
+            document.getElementById('houseEmploymentStatus').value = empStatus;
+            toggleHouseEmploymentFields();
+            
+            if (empStatus === 'working') {
+                document.getElementById('houseJob').value = h.head_job_name || '';
+            } else if (empStatus === 'studying') {
+                document.getElementById('houseInstitutionName').value = h.head_institution_name || '';
+            }
+        }
         
         // Status Bantuan
         if (document.getElementById('houseAidStatus')) {
@@ -461,67 +479,30 @@ function toggleMemberEmploymentFields() {
     else { if (jobGroup) jobGroup.style.display = 'none'; if (institutionGroup) institutionGroup.style.display = 'none'; }
 }
 
-document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('houseId').value;
-    const lat = parseFloat(document.getElementById('houseLat').value);
-    const lng = parseFloat(document.getElementById('houseLng').value);
-    if (!lat || !lng || isNaN(lat) || isNaN(lng)) { showToast('Koordinat tidak valid. Klik peta terlebih dahulu.', 'error'); return; }
-    const members = JSON.parse(document.getElementById('familyMembersData').value || '[]');
-    const body = {
-        rt: document.getElementById('houseRt')?.value || '', rw: document.getElementById('houseRw')?.value || '',
-        kelurahan: document.getElementById('houseKelurahan')?.value || '', kecamatan: document.getElementById('houseKecamatan')?.value || '',
-        full_address: document.getElementById('houseFullAddress')?.value || document.getElementById('houseAddress')?.value || '',
-        latitude: lat, longitude: lng,
-        house_condition: document.getElementById('houseCondition').value,
-        managing_center_id: document.getElementById('managingCenterId')?.value || null,
-        head_name: document.getElementById('houseHeadName').value.trim(),
-        head_nik: document.getElementById('houseNIK').value.trim(),
-        head_gender: document.getElementById('houseGender').value,
-        head_date_of_birth: document.getElementById('houseDOB').value,
-        head_education: document.getElementById('houseEducation').value,
-        head_employment_status: 'unemployed',
-        head_job_name: document.getElementById('houseJob').value.trim() || null,
-        head_institution_name: null,
-        head_monthly_income: parseInt(document.getElementById('houseIncome').value) || 0,
-        address: document.getElementById('houseAddress')?.value || '',
-        nik: document.getElementById('houseNIK').value.trim(),
-        gender: document.getElementById('houseGender').value,
-        date_of_birth: document.getElementById('houseDOB').value,
-        education: document.getElementById('houseEducation').value,
-        dependents: members.length + 1,
-        income: parseInt(document.getElementById('houseIncome').value) || 0,
-        job: document.getElementById('houseJob').value.trim(),
-        land_ownership: document.getElementById('houseLandOwnership').value,
-        description: document.getElementById('houseDescription').value.trim(),
-        aid_status: document.getElementById('houseAidStatus').value,
-        household_members: members,
-        notes: document.getElementById('houseDescription').value.trim()
-    };
-    if (!body.head_name) { showToast('Nama Kepala Keluarga wajib diisi.', 'error'); return; }
-    if (!body.head_nik || body.head_nik.length !== 16) { showToast('NIK KK harus 16 digit.', 'error'); return; }
-    if (!body.head_date_of_birth) { showToast('Tanggal Lahir KK wajib diisi.', 'error'); return; }
-    showLoading(true);
-    if (r.ok && r.data?.success) {
-        closeModal('houseModal');
-        cancelPlacementMode();
-        showToast(id ? 'Data rumah diperbarui.' : 'Rumah berhasil ditambahkan.', 'success');
-        await loadAllData();
-        
-        // ⭐ HITUNG ULANG CENTER HOUSEHOLDS
-        recountCenterHouseholds();
-        renderCenterList();      // Refresh sidebar centers
-        renderHouseList();       // Refresh sidebar houses
-        updateLayerCounts();     // Update layer badges
-        loadStats();             // Update statistik
+function toggleHouseEmploymentFields() {
+    const status = document.getElementById('houseEmploymentStatus')?.value;
+    const jobGroup = document.getElementById('houseJobGroup');
+    const institutionGroup = document.getElementById('houseInstitutionGroup');
+    const jobField = document.getElementById('houseJob');
+    const institutionField = document.getElementById('houseInstitutionName');
+    
+    if (status === 'working') {
+        if (jobGroup) jobGroup.style.display = 'block';
+        if (institutionGroup) institutionGroup.style.display = 'none';
+        if (jobField) jobField.required = false;
+        if (institutionField) institutionField.required = false;
+    } else if (status === 'studying') {
+        if (jobGroup) jobGroup.style.display = 'none';
+        if (institutionGroup) institutionGroup.style.display = 'block';
+        if (jobField) jobField.required = false;
+        if (institutionField) institutionField.required = false;
+    } else {
+        if (jobGroup) jobGroup.style.display = 'none';
+        if (institutionGroup) institutionGroup.style.display = 'none';
+        if (jobField) jobField.required = false;
+        if (institutionField) institutionField.required = false;
     }
-    try {
-        const r = id ? await ApiHouses.update(id, body) : await ApiHouses.create(body);
-        if (r.ok && r.data?.success) { closeModal('houseModal'); cancelPlacementMode(); showToast(id ? 'Data rumah diperbarui.' : 'Rumah berhasil ditambahkan.', 'success'); await loadAllData(); }
-        else showToast(r.data?.message || 'Gagal menyimpan.', 'error');
-    } catch (err) { showToast('Terjadi kesalahan: ' + err.message, 'error'); }
-    finally { showLoading(false); }
-});
+}
 
 async function editHouse(id) { if (MAP) MAP.closePopup(); await openHouseModal(id); }
 async function deleteHouse(id) {
@@ -606,7 +587,6 @@ document.getElementById('aidForm')?.addEventListener('submit', async (e) => {
     return false;
 });
 
-// Tambahkan fungsi ini di forms.js untuk refresh popup setelah update
 async function refreshHousePopup(householdId) {
     try {
         const r = await ApiHouses.show(householdId);
@@ -694,3 +674,216 @@ async function deleteAidRecord(aidId) {
 }
 
 function openReportModal(householdId) { showToast('Gunakan halaman lapor.html untuk melaporkan warga.', 'success', 3000); }
+
+// Helper: show error message below field
+function showFieldError(fieldId, errorId, message) {
+    const errorEl = document.getElementById(errorId);
+    const fieldEl = document.getElementById(fieldId);
+    if (errorEl) {
+        errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        errorEl.classList.add('show');
+    }
+    if (fieldEl) fieldEl.classList.add('error');
+}
+
+// Helper: clear error for a field
+function clearFieldError(fieldId, errorId) {
+    const errorEl = document.getElementById(errorId);
+    const fieldEl = document.getElementById(fieldId);
+    if (errorEl) errorEl.classList.remove('show');
+    if (fieldEl) fieldEl.classList.remove('error');
+}
+
+// Validate house form before submit
+function validateHouseForm() {
+    let isValid = true;
+
+    const employmentStatus = document.getElementById('houseEmploymentStatus')?.value;
+    
+    // Required fields
+    const requiredFields = [
+        { id: 'houseHeadName', errId: 'errHouseHeadName', label: 'Nama Kepala Keluarga' },
+        { id: 'houseNIK', errId: 'errHouseNIK', label: 'NIK KK', validate: (val) => /^\d{16}$/.test(val) },
+        { id: 'houseGender', errId: 'errHouseGender', label: 'Jenis Kelamin' },
+        { id: 'houseDOB', errId: 'errHouseDOB', label: 'Tanggal Lahir' },
+        { id: 'houseEducation', errId: 'errHouseEducation', label: 'Pendidikan' },
+        { id: 'houseIncome', errId: 'errHouseIncome', label: 'Pendapatan' },
+        { id: 'houseCondition', errId: 'errHouseCondition', label: 'Kondisi Rumah' },
+        { id: 'houseLandOwnership', errId: 'errHouseLandOwnership', label: 'Kepemilikan Lahan' },
+        { id: 'houseRt', errId: 'errHouseRt', label: 'RT' },
+        { id: 'houseRw', errId: 'errHouseRw', label: 'RW' },
+        { id: 'houseKelurahan', errId: 'errHouseKelurahan', label: 'Kelurahan' },
+        { id: 'houseKecamatan', errId: 'errHouseKecamatan', label: 'Kecamatan' },
+        { id: 'houseFullAddress', errId: 'errHouseAddress', label: 'Alamat Lengkap' }
+    ];
+    
+    requiredFields.forEach(field => {
+        const el = document.getElementById(field.id);
+        let value = el ? el.value.trim() : '';
+        
+        if (!value || value === '') {
+            showFieldError(field.id, field.errId, `${field.label} wajib diisi.`);
+            isValid = false;
+        } else if (field.validate && !field.validate(value)) {
+            showFieldError(field.id, field.errId, `${field.label} tidak valid.`);
+            isValid = false;
+        } else {
+            clearFieldError(field.id, field.errId);
+        }
+    });
+
+    if (employmentStatus === 'working') {
+        const jobValue = document.getElementById('houseJob')?.value.trim();
+        if (!jobValue || jobValue === '') {
+            showFieldError('houseJob', 'errHouseJob', 'Nama pekerjaan wajib diisi.');
+            isValid = false;
+        } else {
+            clearFieldError('houseJob', 'errHouseJob');
+        }
+    } else if (employmentStatus === 'studying') {
+        const institutionValue = document.getElementById('houseInstitutionName')?.value.trim();
+        if (!institutionValue || institutionValue === '') {
+            showFieldError('houseInstitutionName', 'errHouseInstitution', 'Nama sekolah/universitas wajib diisi.');
+            isValid = false;
+        } else {
+            clearFieldError('houseInstitutionName', 'errHouseInstitution');
+        }
+    } else {
+        // Status unemployed: tidak perlu validasi pekerjaan/institusi
+        clearFieldError('houseJob', 'errHouseJob');
+        clearFieldError('houseInstitutionName', 'errHouseInstitution');
+    }
+    
+    // Koordinat validation
+    const lat = document.getElementById('houseLat')?.value;
+    const lng = document.getElementById('houseLng')?.value;
+    if (!lat || !lng || lat === '' || lng === '') {
+        showFieldError('houseLatDisplay', 'errHouseCoord', 'Pilih lokasi pada peta terlebih dahulu.');
+        isValid = false;
+    } else {
+        clearFieldError('houseLatDisplay', 'errHouseCoord');
+    }
+    
+    // Family members validation (at least 1 member? optional)
+    const familyData = document.getElementById('familyMembersData')?.value;
+    // Tidak wajib, hanya peringatan jika kosong
+    if (familyData && familyData !== '[]') {
+        const members = JSON.parse(familyData);
+        if (members.length === 0) {
+            // Optional warning
+        }
+    }
+    
+    return isValid;
+}
+
+// Tambahkan event listener untuk real-time validation clearing
+function initHouseFormValidation() {
+    const fields = ['houseHeadName', 'houseNIK', 'houseGender', 'houseDOB', 'houseEducation', 
+                    'houseIncome', 'houseJob', 'houseCondition', 'houseLandOwnership', 
+                    'houseRt', 'houseRw', 'houseKelurahan', 'houseKecamatan', 'houseFullAddress'];
+    
+    fields.forEach(fieldId => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+            el.addEventListener('input', () => {
+                const errId = 'err' + fieldId.charAt(0).toUpperCase() + fieldId.slice(1);
+                clearFieldError(fieldId, errId);
+            });
+            el.addEventListener('change', () => {
+                const errId = 'err' + fieldId.charAt(0).toUpperCase() + fieldId.slice(1);
+                clearFieldError(fieldId, errId);
+            });
+        }
+    });
+    
+    // Coordinate clear on map click
+    const coordFields = ['houseLat', 'houseLng'];
+    coordFields.forEach(fieldId => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+            el.addEventListener('change', () => {
+                clearFieldError('houseLatDisplay', 'errHouseCoord');
+            });
+        }
+    });
+}
+
+// Modify the houseForm submit handler
+document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // ⭐ VALIDATE FORM FIRST
+    if (!validateHouseForm()) {
+        // Scroll to first error
+        const firstError = document.querySelector('.field-error.show');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        showToast('Periksa kembali isian yang belum lengkap.', 'error');
+        return;
+    }
+    
+    const id = document.getElementById('houseId').value;
+    const lat = parseFloat(document.getElementById('houseLat').value);
+    const lng = parseFloat(document.getElementById('houseLng').value);
+    
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) { 
+        showToast('Koordinat tidak valid. Klik peta terlebih dahulu.', 'error'); 
+        return; 
+    }
+    
+    const members = JSON.parse(document.getElementById('familyMembersData').value || '[]');
+    const body = {
+        rt: document.getElementById('houseRt')?.value || '',
+        rw: document.getElementById('houseRw')?.value || '',
+        kelurahan: document.getElementById('houseKelurahan')?.value || '',
+        kecamatan: document.getElementById('houseKecamatan')?.value || '',
+        full_address: document.getElementById('houseFullAddress')?.value || '',
+        latitude: lat, 
+        longitude: lng,
+        house_condition: document.getElementById('houseCondition').value,
+        managing_center_id: document.getElementById('managingCenterId')?.value || null,
+        head_name: document.getElementById('houseHeadName').value.trim(),
+        head_nik: document.getElementById('houseNIK').value.trim(),
+        head_gender: document.getElementById('houseGender').value,
+        head_date_of_birth: document.getElementById('houseDOB').value,
+        head_education: document.getElementById('houseEducation').value,
+        head_employment_status: document.getElementById('houseEmploymentStatus').value,
+        head_job_name: document.getElementById('houseEmploymentStatus').value === 'working' ? document.getElementById('houseJob').value.trim() || null : null,
+        head_institution_name: document.getElementById('houseEmploymentStatus').value === 'studying' ? document.getElementById('houseInstitutionName').value.trim() || null : null,
+        head_monthly_income: parseInt(document.getElementById('houseIncome').value) || 0,
+        land_ownership: document.getElementById('houseLandOwnership').value,
+        description: document.getElementById('houseDescription').value.trim(),
+        aid_status: document.getElementById('houseAidStatus').value,
+        household_members: members,
+        notes: document.getElementById('houseDescription').value.trim()
+    };
+    
+    if (!body.head_name) { showToast('Nama Kepala Keluarga wajib diisi.', 'error'); return; }
+    if (!body.head_nik || body.head_nik.length !== 16) { showToast('NIK KK harus 16 digit.', 'error'); return; }
+    if (!body.head_date_of_birth) { showToast('Tanggal Lahir KK wajib diisi.', 'error'); return; }
+    
+    showLoading(true);
+    try {
+        const r = id ? await ApiHouses.update(id, body) : await ApiHouses.create(body);
+        if (r.ok && r.data?.success) { 
+            closeModal('houseModal'); 
+            cancelPlacementMode(); 
+            showToast(id ? 'Data rumah diperbarui.' : 'Rumah berhasil ditambahkan.', 'success'); 
+            await loadAllData();
+            
+            recountCenterHouseholds();
+            renderCenterList();
+            renderHouseList();
+            updateLayerCounts();
+            loadStats();
+        } else { 
+            showToast(r.data?.message || 'Gagal menyimpan.', 'error'); 
+        }
+    } catch (err) { 
+        showToast('Terjadi kesalahan: ' + err.message, 'error'); 
+    } finally { 
+        showLoading(false); 
+    }
+});
