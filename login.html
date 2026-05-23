@@ -2,7 +2,10 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Login — WebGIS Poverty Mapping</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,61 +14,80 @@
 :root {
     --bg:#eef0f5; --surface:#fff; --border:#e2e6ef; --border-subtle:#edf0f6;
     --text-primary:#0f1623; --text-secondary:#5a6478; --text-muted:#9ba4b5;
-    --accent:#3a56d4; --accent-hover:#2d45b8; --accent-light:#eaedfc; --accent-subtle:rgba(58,86,212,0.09);
+    --accent:#3a56d4; --accent-hover:#2d45b8; --accent-light:#eaedfc;
+    --accent-subtle:rgba(58,86,212,0.09);
     --success:#0b9e73; --danger:#d63230;
     --shadow-sm:0 1px 4px rgba(15,22,35,0.07),0 1px 2px rgba(15,22,35,0.04);
     --shadow-md:0 4px 16px rgba(15,22,35,0.08),0 2px 6px rgba(15,22,35,0.04);
     --shadow-lg:0 12px 36px rgba(15,22,35,0.11),0 4px 12px rgba(15,22,35,0.06);
     --r-sm:7px; --r:11px; --r-lg:15px; --r-xl:20px;
+    --touch-min:44px;
 }
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+
 body {
     font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-    background:var(--bg); min-height:100vh;
+    background:var(--bg);
+    min-height:100vh;
+    min-height:calc(var(--vh,1vh)*100);
     display:flex; align-items:center; justify-content:center;
     -webkit-font-smoothing:antialiased;
     background-image:
         radial-gradient(circle at 15% 50%, rgba(58,86,212,0.07) 0%,transparent 55%),
         radial-gradient(circle at 85% 20%, rgba(11,158,115,0.05) 0%,transparent 50%);
+    /* Safe area for notched phones */
+    padding:env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overflow-y:auto;
 }
 
-/* ===== CARD ===== */
-.login-wrap { width:100%; max-width:400px; padding:20px; }
-
-.login-logo {
-    text-align:center; margin-bottom:28px;
+/* ===== WRAP ===== */
+.login-wrap {
+    width:100%; max-width:400px;
+    padding:20px 16px;
+    /* On small screens center vertically with flex */
 }
+
+/* ===== LOGO ===== */
+.login-logo { text-align:center; margin-bottom:24px; }
 .logo-icon {
-    width:54px; height:54px; background:var(--accent); border-radius:14px;
+    width:52px; height:52px; background:var(--accent); border-radius:14px;
     display:inline-flex; align-items:center; justify-content:center;
-    color:white; font-size:22px; margin-bottom:14px;
+    color:white; font-size:21px; margin-bottom:12px;
     box-shadow:0 6px 20px rgba(58,86,212,0.32);
 }
-.login-logo h1 { font-size:20px; font-weight:700; color:var(--text-primary); letter-spacing:-0.01em; }
-.login-logo p  { font-size:12.5px; color:var(--text-muted); margin-top:3px; }
+.login-logo h1 {
+    font-size:19px; font-weight:700; color:var(--text-primary); letter-spacing:-0.01em;
+}
+.login-logo p { font-size:12px; color:var(--text-muted); margin-top:3px; }
 
+/* ===== CARD ===== */
 .card {
     background:var(--surface); border-radius:var(--r-xl);
-    padding:28px; box-shadow:var(--shadow-lg); border:1px solid var(--border);
+    padding:24px 22px; box-shadow:var(--shadow-lg); border:1px solid var(--border);
 }
 
 /* ===== FORM ===== */
-.form-group { margin-bottom:16px; }
+.form-group { margin-bottom:15px; }
 label {
     display:block; font-size:11px; font-weight:700; color:var(--text-secondary);
     text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;
 }
 .input-wrap { position:relative; }
 .input-wrap i.icon {
-    position:absolute; left:12px; top:50%; transform:translateY(-50%);
-    color:var(--text-muted); font-size:13px; pointer-events:none;
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    color:var(--text-muted); font-size:13px; pointer-events:none; z-index:1;
 }
 .input-wrap input {
-    width:100%; padding:10px 12px 10px 38px;
+    width:100%; padding:12px 12px 12px 40px;
     border:1.5px solid var(--border); border-radius:var(--r-sm);
-    font-size:13.5px; font-family:'DM Sans',sans-serif;
+    /* 16px prevents iOS auto-zoom */
+    font-size:16px; font-family:'DM Sans',sans-serif;
     color:var(--text-primary); background:#f9fafe;
     transition:all 0.15s; outline:none;
+    min-height:var(--touch-min);
+    -webkit-appearance:none;
 }
 .input-wrap input:focus {
     border-color:var(--accent); background:var(--surface);
@@ -73,17 +95,20 @@ label {
 }
 .input-wrap input.error { border-color:var(--danger); background:#fff8f8; }
 .input-wrap .toggle-pass {
-    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    position:absolute; right:0; top:0; bottom:0;
+    width:44px; display:flex; align-items:center; justify-content:center;
     color:var(--text-muted); cursor:pointer; font-size:13px; border:none;
-    background:none; padding:2px; transition:color 0.14s;
+    background:none; padding:0; transition:color 0.14s;
+    border-radius:0 var(--r-sm) var(--r-sm) 0;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
 }
 .input-wrap .toggle-pass:hover { color:var(--accent); }
 
-/* ===== ERROR ===== */
+/* ===== ERROR ALERT ===== */
 .alert-error {
     background:#fff0f0; border:1px solid #fcc; color:var(--danger);
     border-radius:var(--r-sm); padding:10px 13px;
-    font-size:12.5px; margin-bottom:16px;
+    font-size:13px; margin-bottom:15px;
     display:none; align-items:center; gap:8px;
     animation:slideDown 0.18s ease;
 }
@@ -92,46 +117,89 @@ label {
 
 /* ===== BUTTON ===== */
 .btn-login {
-    width:100%; padding:12px; border:none; border-radius:var(--r-sm);
-    background:var(--accent); color:white; font-size:14px; font-weight:700;
+    width:100%; padding:13px; border:none; border-radius:var(--r-sm);
+    background:var(--accent); color:white; font-size:15px; font-weight:700;
     font-family:'DM Sans',sans-serif; cursor:pointer;
     display:flex; align-items:center; justify-content:center; gap:9px;
     transition:all 0.15s; margin-top:4px;
     box-shadow:0 4px 14px rgba(58,86,212,0.28);
+    min-height:var(--touch-min);
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
 }
 .btn-login:hover:not(:disabled) {
     background:var(--accent-hover);
     box-shadow:0 6px 20px rgba(58,86,212,0.38);
     transform:translateY(-1px);
 }
+.btn-login:active:not(:disabled) { transform:translateY(0); }
 .btn-login:disabled { opacity:0.65; cursor:not-allowed; transform:none; box-shadow:none; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .spinner { animation:spin 0.8s linear infinite; display:inline-block; }
 
 /* ===== ROLE PILLS ===== */
 .role-hint {
-    display:flex; gap:7px; margin-top:18px; padding-top:16px;
+    display:flex; gap:7px; margin-top:16px; padding-top:14px;
     border-top:1px solid var(--border-subtle);
 }
 .role-pill {
-    flex:1; padding:9px 8px; border-radius:var(--r-sm);
-    border:1px solid var(--border); background:var(--bg);
+    flex:1; padding:10px 8px; border-radius:var(--r-sm);
+    border:1.5px solid var(--border); background:var(--bg);
     cursor:pointer; transition:all 0.14s; text-align:center;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    min-height:var(--touch-min);
 }
-.role-pill:hover { border-color:var(--accent); background:var(--accent-light); }
+.role-pill:hover  { border-color:var(--accent); background:var(--accent-light); }
 .role-pill.selected { border-color:var(--accent); background:var(--accent-light); }
-.role-pill-icon { font-size:16px; margin-bottom:5px; }
+.role-pill-icon  { font-size:17px; margin-bottom:5px; }
 .role-pill-label { font-size:10px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; }
-.role-pill-email { font-size:9.5px; color:var(--text-muted); font-family:'DM Mono',monospace; margin-top:2px; }
+.role-pill-email { font-size:9.5px; color:var(--text-muted); font-family:'DM Mono',monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ===== PUBLIC LINK ===== */
 .public-link {
-    text-align:center; margin-top:16px; font-size:12px; color:var(--text-muted);
+    text-align:center; margin-top:14px; font-size:12.5px; color:var(--text-muted);
 }
 .public-link a {
     color:var(--accent); text-decoration:none; font-weight:600;
+    padding:2px 4px; border-radius:4px;
 }
 .public-link a:hover { text-decoration:underline; }
+
+/* ===== DIVIDER ===== */
+.divider {
+    display:flex; align-items:center; gap:10px;
+    margin:14px 0; color:var(--text-muted); font-size:11px;
+}
+.divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ===== RESPONSIVE ===== */
+
+/* Phones: full-width, tighter padding */
+@media (max-width:440px) {
+    .login-wrap { padding:16px 12px; max-width:100%; }
+    .card { padding:20px 16px; border-radius:var(--r-lg); }
+    .login-logo { margin-bottom:18px; }
+    .login-logo h1 { font-size:17px; }
+    .logo-icon { width:46px; height:46px; font-size:19px; }
+    .role-pill-email { font-size:8.5px; }
+}
+
+/* Very small phones */
+@media (max-width:360px) {
+    .login-wrap { padding:12px 10px; }
+    .card { padding:16px 14px; }
+    .role-hint { gap:5px; }
+    .role-pill { padding:8px 5px; }
+    .role-pill-icon { font-size:15px; }
+}
+
+/* Landscape phones: reduce vertical spacing */
+@media (max-height:600px) and (orientation:landscape) {
+    .login-logo { margin-bottom:14px; }
+    .login-logo .logo-icon { margin-bottom:8px; }
+    .card { padding:18px 20px; }
+    .form-group { margin-bottom:11px; }
+    .role-hint { display:none; } /* hide demo pills in landscape to save space */
+}
 </style>
 </head>
 <body>
@@ -155,7 +223,7 @@ label {
                 <div class="input-wrap">
                     <i class="fas fa-envelope icon"></i>
                     <input type="email" id="email" placeholder="admin@webgis.local"
-                           autocomplete="email" required>
+                           autocomplete="email" inputmode="email" required>
                 </div>
             </div>
             <div class="form-group">
@@ -164,7 +232,7 @@ label {
                     <i class="fas fa-lock icon"></i>
                     <input type="password" id="password" placeholder="••••••••"
                            autocomplete="current-password" required>
-                    <button type="button" class="toggle-pass" id="togglePass" tabindex="-1">
+                    <button type="button" class="toggle-pass" id="togglePass" tabindex="-1" aria-label="Tampilkan password">
                         <i class="fas fa-eye" id="togglePassIcon"></i>
                     </button>
                 </div>
@@ -174,16 +242,18 @@ label {
             </button>
         </form>
 
+        <div class="divider">atau pilih akun demo</div>
+
         <!-- Quick-fill demo accounts -->
         <div class="role-hint">
-            <div class="role-pill" onclick="fillCredentials('admin@webgis.local','Admin@12345')">
+            <div class="role-pill" onclick="fillCredentials('admin@webgis.local','Admin@12345', this)">
                 <div class="role-pill-icon">🔑</div>
                 <div class="role-pill-label">Admin</div>
                 <div class="role-pill-email">admin@webgis.local</div>
             </div>
-            <div class="role-pill" onclick="fillCredentials('petugas@webgis.local','Petugas@12345')">
+            <div class="role-pill" onclick="fillCredentials('petugas@webgis.local','Petugas@12345', this)">
                 <div class="role-pill-icon">📋</div>
-                <div class="role-pill-label">Petugas Lapangan</div>
+                <div class="role-pill-label">Petugas</div>
                 <div class="role-pill-email">petugas@webgis.local</div>
             </div>
         </div>
@@ -197,13 +267,22 @@ label {
 <script>
 'use strict';
 
+// Fix 100vh on iOS
+(function() {
+    function setVH() {
+        document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    }
+    setVH();
+    window.addEventListener('resize', setVH);
+})();
+
 // ---- If already logged in, skip to index.html ----
 (async () => {
     try {
         const r = await fetch('api/auth/check.php');
         const d = await r.json();
         if (d?.data?.logged_in) window.location.replace('index.html');
-    } catch { /* not logged in, stay here */ }
+    } catch { /* not logged in */ }
 })();
 
 // ---- Password toggle ----
@@ -216,12 +295,13 @@ document.getElementById('togglePass').addEventListener('click', () => {
 });
 
 // ---- Quick-fill ----
-function fillCredentials(email, pass) {
+function fillCredentials(email, pass, pillEl) {
     document.getElementById('email').value    = email;
     document.getElementById('password').value = pass;
     document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-    document.getElementById('email').focus();
+    pillEl.classList.add('selected');
+    // On mobile, move focus away from form to avoid keyboard
+    document.getElementById('loginBtn').focus();
 }
 
 // ---- Submit ----
@@ -256,6 +336,9 @@ form.addEventListener('submit', async (e) => {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-circle-notch spinner"></i> Masuk...';
 
+    // Blur to hide keyboard on mobile before navigation
+    document.activeElement?.blur();
+
     try {
         const res  = await fetch('api/auth/check.php?action=login', {
             method:  'POST',
@@ -279,7 +362,7 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// Enter key on email → focus password
+// Enter on email → focus password
 document.getElementById('email').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('password').focus(); }
 });
