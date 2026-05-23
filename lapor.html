@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Laporkan Warga — WebGIS Kemiskinan</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   lapor.html — All-required form, fully-synced geocoding
+   Preserves original WebGIS visual identity
+   ============================================================ */
+:root {
+    --bg: #eef0f5;
+    --surface: #fff;
+    --surface-2: #f5f6f9;
+    --surface-3: #edf0f7;
+    --border: #e2e6ef;
+    --border-subtle: #edf0f6;
+    --text-primary: #0f1623;
+    --text-secondary: #5a6478;
+    --text-muted: #9ba4b5;
+    --accent: #3a56d4;
+    --accent-hover: #2d45b8;
+    --accent-light: #eaedfc;
+    --accent-subtle: rgba(58,86,212,0.09);
+    --success: #0b9e73;
+    --danger: #d63230;
+    --warning: #d97706;
+    --shadow-sm: 0 1px 4px rgba(15,22,35,0.07),0 1px 2px rgba(15,22,35,0.04);
+    --shadow-md: 0 4px 16px rgba(15,22,35,0.08),0 2px 6px rgba(15,22,35,0.04);
+    --shadow-lg: 0 12px 36px rgba(15,22,35,0.11),0 4px 12px rgba(15,22,35,0.06);
+    --r-xs: 4px; --r-sm: 7px; --r: 11px; --r-lg: 15px; --r-xl: 20px;
+    --touch-min: 44px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { height: 100%; }
+
+body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+}
+
+/* ===== LAYOUT ===== */
+.page-wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 20px 16px calc(48px + var(--safe-bottom));
+}
+
+/* ===== HEADER ===== */
+.page-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 22px; padding-bottom: 18px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.page-header-logo {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--danger);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 19px; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(214,50,48,0.35);
+}
+.page-header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.page-header p  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.back-link {
+    margin-left: auto; padding: 7px 14px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-secondary); text-decoration: none;
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.14s; white-space: nowrap; flex-shrink: 0;
+    min-height: var(--touch-min); touch-action: manipulation;
+}
+.back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== SUCCESS STATE ===== */
+.success-card {
+    display: none; text-align: center;
+    background: var(--surface); border-radius: var(--r-xl);
+    border: 1px solid var(--border); box-shadow: var(--shadow-md);
+    padding: 52px 28px 44px;
+}
+.success-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, #c8f2e6, #a2e9d4);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px; font-size: 28px; color: var(--success);
+    box-shadow: 0 6px 20px rgba(11,158,115,0.2);
+}
+.success-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.success-card p  {
+    font-size: 13.5px; color: var(--text-secondary);
+    max-width: 380px; margin: 0 auto 10px; line-height: 1.65;
+}
+.success-id {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    font-size: 12px; color: var(--text-muted);
+    font-family: 'DM Mono', monospace; margin: 10px 0 24px;
+}
+.btn-reset {
+    padding: 11px 28px; border-radius: 20px; border: none;
+    background: var(--accent); color: white; font-size: 13px;
+    font-weight: 600; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: all 0.15s;
+    min-height: var(--touch-min); touch-action: manipulation;
+}
+.btn-reset:hover { background: var(--accent-hover); }
+
+/* ===== INFO BOX ===== */
+.info-box {
+    padding: 12px 15px; border-radius: var(--r);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-light); font-size: 12px;
+    color: var(--text-secondary); margin-bottom: 16px;
+    display: flex; align-items: flex-start; gap: 9px;
+}
+.info-box i { color: var(--accent); margin-top: 1px; flex-shrink: 0; }
+
+/* ===== CARD ===== */
+.card {
+    background: var(--surface); border-radius: var(--r-xl);
+    border: 1px solid var(--border); box-shadow: var(--shadow-md);
+    padding: 22px 22px 18px;
+}
+.card + .card { margin-top: 14px; }
+.card-title {
+    font-size: 12px; font-weight: 700; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 7px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);
+}
+.card-title i { color: var(--accent); }
+
+/* ===== REQUIRED BADGE ===== */
+.req { color: var(--danger); font-size: 12px; }
+
+/* ===== GRID ===== */
+.main-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px; align-items: start;
+}
+
+/* ===== FORM ===== */
+.form-group { margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
+
+label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-secondary); margin-bottom: 5px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="email"],
+textarea,
+select {
+    width: 100%; padding: 10px 12px;
+    border: 1.5px solid var(--border); border-radius: var(--r-sm);
+    /* 16px prevents iOS auto-zoom */
+    font-size: 16px; font-family: 'DM Sans', sans-serif;
+    color: var(--text-primary); background: var(--surface-2);
+    transition: all 0.15s; outline: none;
+    -webkit-appearance: none; appearance: none;
+    min-height: var(--touch-min);
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--accent); background: var(--surface);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+input.error, textarea.error, select.error {
+    border-color: var(--danger) !important;
+    background: #fff8f8;
+}
+input[readonly], textarea[readonly] {
+    background: var(--surface-2); color: var(--text-muted);
+    cursor: default; border-style: dashed;
+}
+textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+
+/* Row grid */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Field error */
+.field-error {
+    font-size: 11px; color: var(--danger);
+    margin-top: 5px; display: none;
+    align-items: center; gap: 5px;
+    animation: errIn 0.15s ease;
+}
+.field-error.show { display: flex; }
+@keyframes errIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
+
+/* ===== SEVERITY SELECTOR ===== */
+.severity-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 7px; margin-top: 4px;
+}
+.sev-btn {
+    padding: 9px 5px; border-radius: var(--r-sm);
+    border: 1.5px solid var(--border); background: var(--surface-2);
+    cursor: pointer; text-align: center;
+    transition: all 0.15s; min-height: var(--touch-min);
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.sev-btn .sev-icon { font-size: 17px; display: block; margin-bottom: 4px; }
+.sev-btn .sev-label {
+    font-size: 10px; font-weight: 700; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.03em; display: block;
+}
+.sev-btn[data-sev="ringan"].active  { border-color: var(--success); background: #e0faf3; }
+.sev-btn[data-sev="ringan"].active .sev-label { color: var(--success); }
+.sev-btn[data-sev="sedang"].active  { border-color: var(--warning); background: #fef6e4; }
+.sev-btn[data-sev="sedang"].active .sev-label { color: var(--warning); }
+.sev-btn[data-sev="berat"].active   { border-color: #f76707; background: #fff3ed; }
+.sev-btn[data-sev="berat"].active .sev-label { color: #f76707; }
+.sev-btn[data-sev="kritis"].active  { border-color: var(--danger); background: #fff0f0; }
+.sev-btn[data-sev="kritis"].active .sev-label { color: var(--danger); }
+
+/* ===== ADDRESS AREA ===== */
+.addr-wrap { position: relative; }
+.addr-spinner {
+    position: absolute; right: 11px; top: 11px;
+    display: none; align-items: center; gap: 5px;
+    font-size: 11px; pointer-events: none; z-index: 2;
+}
+.addr-spinner.show { display: flex; }
+.addr-spinner.loading { color: var(--accent); }
+.addr-spinner.synced  { color: var(--success); }
+.addr-spinner.error   { color: var(--danger); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fa-spin-inline { animation: spin 0.8s linear infinite; display: inline-block; }
+
+/* Address textarea right-padding so text doesn't overlap spinner */
+#reportAddress { padding-right: 100px; }
+
+/* ===== COORD CARD ===== */
+.coord-display {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; background: var(--surface-2);
+    border: 1.5px solid var(--border-subtle); border-radius: var(--r-sm);
+    font-size: 12px; color: var(--text-secondary);
+    transition: border-color 0.2s;
+}
+.coord-display i { color: var(--accent); font-size: 14px; margin-top: 1px; flex-shrink: 0; }
+.coord-display.has-coord { border-color: var(--success); }
+.coord-display.fetching {
+    border-color: var(--accent);
+    animation: borderPulse 1.2s ease-in-out infinite;
+}
+@keyframes borderPulse {
+    0%,100% { border-color: var(--border-subtle); }
+    50%      { border-color: var(--accent); }
+}
+.coord-value {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--text-primary); font-weight: 500;
+}
+.coord-sub {
+    font-size: 10.5px; margin-top: 3px; min-height: 14px;
+    color: var(--text-muted); transition: color 0.2s;
+}
+
+/* GPS button */
+.btn-gps {
+    width: 100%; margin-top: 8px; padding: 9px 12px;
+    border: 1.5px solid var(--accent); border-radius: var(--r-sm);
+    background: var(--accent-light); color: var(--accent);
+    font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 7px; transition: all 0.15s;
+    min-height: var(--touch-min); touch-action: manipulation;
+}
+.btn-gps:hover { background: var(--accent); color: white; }
+.btn-gps.loading { background: var(--warning); border-color: var(--warning); color: white; pointer-events: none; }
+
+/* Coord hint line */
+.coord-hint {
+    font-size: 10.5px; color: var(--text-muted);
+    margin-top: 6px; display: flex; align-items: center; gap: 5px;
+}
+.coord-hint.has-coord { color: var(--success); }
+.coord-hint.has-coord i { color: var(--success); }
+
+/* ===== MINI MAP ===== */
+#miniMap {
+    width: 100%; height: 340px; border-radius: var(--r-lg);
+    border: 2px solid var(--border); cursor: crosshair;
+    transition: border-color 0.2s; margin-bottom: 8px;
+}
+#miniMap.has-pin { border-color: var(--accent); }
+
+.map-tip {
+    font-size: 10.5px; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px;
+    text-align: center; justify-content: center; padding: 0 4px;
+    transition: color 0.2s;
+}
+.map-tip.synced { color: var(--success); }
+.map-tip.synced i { color: var(--success); }
+
+/* ===== SUBMIT ===== */
+.btn-submit {
+    width: 100%; padding: 14px; border: none; border-radius: var(--r-sm);
+    background: var(--success); color: white; font-size: 15px;
+    font-weight: 700; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 9px; transition: all 0.18s;
+    margin-top: 20px; box-shadow: 0 4px 14px rgba(214,50,48,0.28);
+    min-height: 52px; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+.btn-submit:hover:not(:disabled) {
+    background: #18754b;
+    box-shadow: 0 6px 20px rgba(214,50,48,0.38);
+    transform: translateY(-1px);
+}
+.btn-submit:active:not(:disabled) { transform: translateY(0); }
+.btn-submit:disabled { background: #bbb; box-shadow: none; cursor: not-allowed; transform: none; }
+
+/* ===== LOADING OVERLAY ===== */
+.loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,15,28,0.4);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    z-index: 3000; display: none;
+    align-items: center; justify-content: center;
+}
+.loading-overlay.show { display: flex; }
+.loading-box {
+    background: var(--surface); padding: 20px 28px;
+    border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 12px;
+    font-size: 14px; font-weight: 500; color: var(--text-secondary);
+}
+.loading-box i { color: var(--accent); font-size: 18px; }
+
+/* ===== TOAST ===== */
+.toast {
+    position: fixed;
+    bottom: calc(24px + var(--safe-bottom));
+    left: 50%; transform: translateX(-50%);
+    background: var(--text-primary); color: white;
+    padding: 11px 20px; border-radius: var(--r-sm);
+    z-index: 4000; display: none; font-size: 13px; font-weight: 500;
+    box-shadow: var(--shadow-md);
+    max-width: calc(100vw - 32px); text-align: center;
+    animation: toastIn 0.22s cubic-bezier(0.34,1.2,0.64,1);
+}
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--danger); }
+@keyframes toastIn { from{transform:translate(-50%,16px);opacity:0} to{transform:translate(-50%,0);opacity:1} }
+
+/* ===== GEOCODE FIELD HIGHLIGHT ===== */
+.geocode-flash {
+    animation: geocodeFlash 0.6s ease;
+}
+@keyframes geocodeFlash {
+    0%   { border-color: var(--accent); background: var(--accent-light); }
+    100% { border-color: var(--border); background: var(--surface-2); }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 680px) {
+    .main-grid { grid-template-columns: 1fr; }
+    #miniMap { height: 270px; }
+    .severity-grid { grid-template-columns: repeat(2, 1fr); }
+    .card { padding: 18px 16px 14px; }
+}
+@media (max-width: 480px) {
+    .page-wrap { padding: 14px 12px calc(36px + var(--safe-bottom)); }
+    .page-header h1 { font-size: 15px; }
+    .page-header-logo { width: 38px; height: 38px; font-size: 16px; }
+    .back-link span { display: none; }
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    #miniMap { height: 230px; }
+    .btn-submit { font-size: 14px; padding: 13px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+    #miniMap { height: 200px; }
+    .page-header { margin-bottom: 12px; padding-bottom: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+    <!-- ===== HEADER ===== -->
+    <div class="page-header">
+        <div class="page-header-logo"><i class="fas fa-flag"></i></div>
+        <div>
+            <h1>Laporkan Warga Membutuhkan</h1>
+            <p>Bantu kami mendata warga yang belum terdata dan membutuhkan bantuan</p>
+        </div>
+        <a href="login.html" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            <span>Kembali</span>
+        </a>
+    </div>
+
+    <!-- ===== SUCCESS STATE ===== -->
+    <div class="success-card" id="successCard">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h2>Laporan Terkirim!</h2>
+        <p>Terima kasih. Laporan Anda telah diterima dan akan segera diverifikasi oleh petugas kami. Data warga akan ditambahkan ke peta setelah verifikasi.</p>
+        <div class="success-id">
+            <i class="fas fa-hashtag"></i>
+            ID Laporan: <strong id="successReportId">—</strong>
+        </div>
+        <button class="btn-reset" onclick="resetForm()">
+            <i class="fas fa-plus"></i> Buat Laporan Lain
+        </button>
+    </div>
+
+    <!-- ===== FORM ===== -->
+    <div id="formWrap">
+
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>Petunjuk pengisian:</strong> Semua kolom bertanda
+                <span style="color:var(--danger);font-weight:700;">*</span> wajib diisi.
+                Klik peta di sebelah kanan untuk menentukan lokasi — alamat, kelurahan,
+                dan kecamatan akan terisi <em>otomatis</em>.
+            </div>
+        </div>
+
+        <div class="main-grid">
+
+            <!-- ======== LEFT COLUMN ======== -->
+            <div>
+
+                <!-- REPORTER -->
+                <div class="card">
+                    <div class="card-title">
+                        <i class="fas fa-user-shield"></i> Data Pelapor
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nama Pelapor <span class="req">*</span></label>
+                        <input type="text" id="reporterName"
+                               placeholder="Nama lengkap Anda"
+                               autocomplete="name"
+                               oninput="clearErr('errReporterName')">
+                        <div class="field-error" id="errReporterName">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Nama pelapor wajib diisi.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nomor Telepon / WA <span class="req">*</span></label>
+                        <input type="tel" id="reporterPhone"
+                               placeholder="08xx-xxxx-xxxx"
+                               autocomplete="tel" inputmode="tel"
+                               oninput="clearErr('errReporterPhone')">
+                        <div class="field-error" id="errReporterPhone">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Nomor telepon wajib diisi (8–15 digit).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WARGA -->
+                <div class="card" style="margin-top:14px;">
+                    <div class="card-title">
+                        <i class="fas fa-home"></i> Data Warga yang Dilaporkan
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nama Kepala Keluarga <span class="req">*</span></label>
+                        <input type="text" id="headName"
+                               placeholder="Nama lengkap kepala keluarga"
+                               oninput="clearErr('errHeadName')">
+                        <div class="field-error" id="errHeadName">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Nama kepala keluarga wajib diisi.
+                        </div>
+                    </div>
+
+                    <!-- RT / RW -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RT <span class="req">*</span></label>
+                            <input type="text" id="reportRt"
+                                   placeholder="01" maxlength="5"
+                                   inputmode="numeric"
+                                   oninput="clearErr('errRt')">
+                            <div class="field-error" id="errRt">
+                                <i class="fas fa-exclamation-circle"></i>
+                                RT wajib diisi.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>RW <span class="req">*</span></label>
+                            <input type="text" id="reportRw"
+                                   placeholder="02" maxlength="5"
+                                   inputmode="numeric"
+                                   oninput="clearErr('errRw')">
+                            <div class="field-error" id="errRw">
+                                <i class="fas fa-exclamation-circle"></i>
+                                RW wajib diisi.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADDRESS — auto-filled by geocoder, editable -->
+                    <div class="form-group">
+                        <label>Alamat Lengkap <span class="req">*</span></label>
+                        <div class="addr-wrap">
+                            <textarea id="reportAddress" rows="3"
+                                placeholder="Klik peta untuk mengisi otomatis, atau ketik manual..."
+                                oninput="clearErr('errAddress')"></textarea>
+                            <!-- spinner overlay -->
+                            <span class="addr-spinner" id="addrSpinner">
+                                <i class="fas fa-circle-notch fa-spin-inline" id="addrSpinIcon"></i>
+                                <span id="addrSpinText"></span>
+                            </span>
+                        </div>
+                        <div class="field-error" id="errAddress">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Alamat lengkap wajib diisi.
+                        </div>
+                    </div>
+
+                    <!-- KELURAHAN / KECAMATAN — auto-filled, required -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kelurahan <span class="req">*</span></label>
+                            <input type="text" id="reportKelurahan"
+                                   placeholder="Terisi otomatis dari peta"
+                                   oninput="clearErr('errKelurahan')">
+                            <div class="field-error" id="errKelurahan">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Kelurahan wajib diisi.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Kecamatan <span class="req">*</span></label>
+                            <input type="text" id="reportKecamatan"
+                                   placeholder="Terisi otomatis dari peta"
+                                   oninput="clearErr('errKecamatan')">
+                            <div class="field-error" id="errKecamatan">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Kecamatan wajib diisi.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DESCRIPTION -->
+                    <div class="form-group">
+                        <label>
+                            Alasan Perlu Bantuan <span class="req">*</span>
+                            <span style="margin-left:auto;font-size:9.5px;font-weight:500;
+                                         color:var(--text-muted);text-transform:none;"
+                                  id="descCount">0 / 500</span>
+                        </label>
+                        <textarea id="reportDescription" rows="4"
+                            placeholder="Contoh: Keluarga ini tinggal di rumah tidak layak, tidak memiliki penghasilan tetap, dan belum pernah menerima bantuan apapun..."
+                            maxlength="500"
+                            oninput="updateDescCount(); clearErr('errDescription')"></textarea>
+                        <div class="field-error" id="errDescription">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Alasan wajib diisi (minimal 20 karakter).
+                        </div>
+                    </div>
+
+                    <!-- SEVERITY -->
+                    <div class="form-group">
+                        <label>Tingkat Urgensi <span class="req">*</span></label>
+                        <input type="hidden" id="reportSeverity" value="">
+                        <div class="severity-grid">
+                            <div class="sev-btn" data-sev="ringan" onclick="selectSeverity('ringan',this)">
+                                <span class="sev-icon">🟢</span>
+                                <span class="sev-label">Ringan</span>
+                            </div>
+                            <div class="sev-btn" data-sev="sedang" onclick="selectSeverity('sedang',this)">
+                                <span class="sev-icon">🟡</span>
+                                <span class="sev-label">Sedang</span>
+                            </div>
+                            <div class="sev-btn" data-sev="berat" onclick="selectSeverity('berat',this)">
+                                <span class="sev-icon">🟠</span>
+                                <span class="sev-label">Berat</span>
+                            </div>
+                            <div class="sev-btn" data-sev="kritis" onclick="selectSeverity('kritis',this)">
+                                <span class="sev-icon">🔴</span>
+                                <span class="sev-label">Kritis</span>
+                            </div>
+                        </div>
+                        <div class="field-error" id="errSeverity" style="margin-top:6px;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Pilih tingkat urgensi.
+                        </div>
+                    </div>
+
+                    <!-- URGENT NEED (optional helper) -->
+                    <div class="form-group">
+                        <label>Kebutuhan Mendesak
+                            <span style="font-size:9.5px;font-weight:500;color:var(--text-muted);
+                                         text-transform:none;">opsional</span>
+                        </label>
+                        <select id="reportUrgentNeed">
+                            <option value="">— Pilih kebutuhan utama —</option>
+                            <option value="pangan">Pangan / Sembako</option>
+                            <option value="papan">Tempat Tinggal Layak</option>
+                            <option value="kesehatan">Layanan Kesehatan</option>
+                            <option value="pendidikan">Biaya Pendidikan Anak</option>
+                            <option value="pekerjaan">Bantuan Pekerjaan</option>
+                            <option value="lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- COORDINATES CARD -->
+                <div class="card" style="margin-top:14px;">
+                    <div class="card-title">
+                        <i class="fas fa-map-pin"></i> Koordinat Lokasi
+                    </div>
+
+                    <div class="coord-display" id="coordCard">
+                        <i class="fas fa-crosshairs"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div class="coord-value" id="coordValue">Belum dipilih</div>
+                            <div class="coord-sub"   id="coordSub">Klik peta untuk menentukan lokasi</div>
+                        </div>
+                    </div>
+
+                    <div class="coord-hint" id="coordHint">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Klik peta di sebelah kanan untuk menentukan lokasi rumah
+                    </div>
+
+                    <!-- hidden inputs -->
+                    <input type="hidden" id="reportLat">
+                    <input type="hidden" id="reportLng">
+
+                    <div class="field-error" id="errCoord" style="margin-top:8px;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Pilih lokasi pada peta terlebih dahulu.
+                    </div>
+
+                    <!-- GPS button -->
+                    <button type="button" class="btn-gps" id="btnGps" onclick="useGPS()">
+                        <i class="fas fa-location-arrow"></i> Gunakan Lokasi Saya (GPS)
+                    </button>
+                </div>
+
+            </div><!-- /left col -->
+
+            <!-- ======== RIGHT COLUMN — MAP ======== -->
+            <div>
+                <div class="card" style="position:sticky;top:16px;">
+                    <div class="card-title">
+                        <i class="fas fa-map"></i> Pilih Lokasi Rumah
+                    </div>
+                    <div id="miniMap"></div>
+                    <div class="map-tip" id="mapTip">
+                        <i class="fas fa-info-circle"></i>
+                        Klik pada peta untuk menempatkan pin. Pin dapat digeser.
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /main-grid -->
+
+        <button class="btn-submit" id="submitBtn" onclick="submitReport()">
+            <i class="fas fa-paper-plane"></i> Kirim Laporan
+        </button>
+
+    </div><!-- /formWrap -->
+</div><!-- /page-wrap -->
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+        <i class="fas fa-circle-notch fa-spin-inline"></i>
+        Mengirim laporan...
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+
+// ============================================================
+// iOS vh fix
+// ============================================================
+(function setVH() {
+    const set = () => document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    set();
+    window.addEventListener('resize', set);
+    window.addEventListener('orientationchange', () => setTimeout(set, 300));
+})();
+
+// ============================================================
+// STATE
+// ============================================================
+let pinMarker        = null;
+let geocodeAbort     = null;   // AbortController
+let geocodeTimer     = null;   // debounce handle
+let isGeocodeFetching = false;
+let selectedLat      = null;
+let selectedLng      = null;
+
+// ============================================================
+// MAP INIT
+// ============================================================
+const miniMap = L.map('miniMap', {
+    center: [-0.0236, 109.3426],
+    zoom: 14,
+    zoomControl: true,
+    tapTolerance: 15,
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+}).addTo(miniMap);
+
+// Invalidate after layout settles
+setTimeout(() => miniMap.invalidateSize(), 300);
+window.addEventListener('resize', () => setTimeout(() => miniMap.invalidateSize(), 150));
+window.addEventListener('orientationchange', () => setTimeout(() => miniMap.invalidateSize(), 400));
+
+// ============================================================
+// PIN ICON
+// ============================================================
+const pinIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+        width:26px;height:26px;border-radius:50%;
+        background:#d63230;border:3px solid white;
+        box-shadow:0 2px 14px rgba(214,50,48,0.55);
+        cursor:move;
+    "></div>`,
+    iconSize:   [26, 26],
+    iconAnchor: [13, 13],
+});
+
+// ============================================================
+// MAP CLICK → place / move pin, always re-geocode
+// ============================================================
+miniMap.on('click', (e) => {
+    placePin(e.latlng.lat, e.latlng.lng);
+});
+
+// ============================================================
+// PLACE PIN
+// ============================================================
+function placePin(lat, lng) {
+    // Remove existing pin
+    if (pinMarker) {
+        miniMap.removeLayer(pinMarker);
+        pinMarker = null;
+    }
+
+    pinMarker = L.marker([lat, lng], {
+        icon: pinIcon,
+        draggable: true,
+    }).addTo(miniMap);
+
+    // Live coordinate update while dragging
+    pinMarker.on('drag', (e) => {
+        const p = e.latlng;
+        selectedLat = p.lat;
+        selectedLng = p.lng;
+        setCoordDisplay(p.lat, p.lng);
+        setAddrSpinner('loading', 'Memperbarui...');
+        setCoordSub('loading');
+    });
+
+    // Geocode on drag-end — always overwrites all location fields
+    pinMarker.on('dragend', () => {
+        const p = pinMarker.getLatLng();
+        selectedLat = p.lat;
+        selectedLng = p.lng;
+        commitCoord(p.lat, p.lng);
+        reverseGeocode(p.lat, p.lng, true); // forceOverwrite = true
+    });
+
+    document.getElementById('miniMap').classList.add('has-pin');
+    selectedLat = lat;
+    selectedLng = lng;
+    commitCoord(lat, lng);
+    reverseGeocode(lat, lng, true);
+}
+
+// ============================================================
+// COMMIT COORD — write hidden fields + update UI
+// ============================================================
+function commitCoord(lat, lng) {
+    document.getElementById('reportLat').value = lat.toFixed(7);
+    document.getElementById('reportLng').value = lng.toFixed(7);
+    setCoordDisplay(lat, lng);
+    clearErr('errCoord');
+
+    // Mark coord card
+    document.getElementById('coordCard').classList.add('has-coord');
+    document.getElementById('coordCard').classList.add('fetching');
+}
+
+function setCoordDisplay(lat, lng) {
+    document.getElementById('coordValue').textContent =
+        `${lat.toFixed(6)},  ${lng.toFixed(6)}`;
+
+    const hint = document.getElementById('coordHint');
+    hint.className = 'coord-hint has-coord';
+    hint.innerHTML = '<i class="fas fa-check-circle"></i> Lokasi dipilih — geser pin untuk koreksi';
+}
+
+// ============================================================
+// GEOCODE STATUS helpers
+// ============================================================
+function setAddrSpinner(state, text = '') {
+    const el   = document.getElementById('addrSpinner');
+    const icon = document.getElementById('addrSpinIcon');
+    const txt  = document.getElementById('addrSpinText');
+    if (!el) return;
+
+    if (state === 'hidden') {
+        el.className = 'addr-spinner';
+        return;
+    }
+    el.className = `addr-spinner show ${state}`;
+    txt.textContent = text;
+
+    if (state === 'loading') {
+        icon.className = 'fas fa-circle-notch fa-spin-inline';
+    } else if (state === 'synced') {
+        icon.className = 'fas fa-check-circle';
+    } else if (state === 'error') {
+        icon.className = 'fas fa-exclamation-circle';
+    }
+}
+
+function setCoordSub(state, text = '') {
+    const el = document.getElementById('coordSub');
+    const card = document.getElementById('coordCard');
+    if (!el) return;
+
+    if (state === 'loading') {
+        el.innerHTML = `<span style="color:var(--accent);">
+            <i class="fas fa-circle-notch fa-spin-inline"></i> Mencari alamat...</span>`;
+        card.classList.add('fetching');
+        card.classList.remove('has-coord');
+    } else if (state === 'synced') {
+        el.innerHTML = `<span style="color:var(--success);">
+            <i class="fas fa-check-circle"></i> Lokasi &amp; alamat tersinkronisasi</span>`;
+        card.classList.remove('fetching');
+        card.classList.add('has-coord');
+    } else if (state === 'error') {
+        el.innerHTML = `<span style="color:var(--danger);">
+            <i class="fas fa-exclamation-circle"></i> ${text || 'Gagal mengambil alamat'}</span>`;
+        card.classList.remove('fetching');
+    } else {
+        el.textContent = text;
+        card.classList.remove('fetching');
+    }
+}
+
+function setMapTip(state) {
+    const el = document.getElementById('mapTip');
+    if (!el) return;
+    if (state === 'synced') {
+        el.className = 'map-tip synced';
+        el.innerHTML = '<i class="fas fa-check-circle"></i> Alamat tersinkronisasi dengan peta';
+        setTimeout(() => {
+            el.className = 'map-tip';
+            el.innerHTML = '<i class="fas fa-info-circle"></i> Klik pada peta untuk menempatkan pin. Pin dapat digeser.';
+        }, 3500);
+    }
+}
+
+// ============================================================
+// REVERSE GEOCODE
+// Debounced + abortable.
+// forceOverwrite=true: ALWAYS replaces address/kelurahan/kecamatan.
+// forceOverwrite=false (default): only fills empty fields.
+// ============================================================
+async function reverseGeocode(lat, lng, forceOverwrite = true) {
+    // Cancel any in-flight request and pending debounce
+    if (geocodeAbort)  { geocodeAbort.abort(); geocodeAbort = null; }
+    clearTimeout(geocodeTimer);
+
+    setAddrSpinner('loading', 'Mencari alamat...');
+    setCoordSub('loading');
+    isGeocodeFetching = true;
+
+    geocodeTimer = setTimeout(async () => {
+        geocodeAbort = new AbortController();
+        const signal = geocodeAbort.signal;
+
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse` +
+                `?lat=${lat.toFixed(7)}&lon=${lng.toFixed(7)}` +
+                `&format=json&accept-language=id&addressdetails=1&zoom=18`;
+
+            const res = await fetch(url, {
+                signal,
+                headers: { 'User-Agent': 'WebGIS-PovertyMapping/2.0' },
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (signal.aborted) return;
+
+            // ── Extract fields ────────────────────────────────
+            const fullAddr = data.display_name || buildFallbackAddress(data);
+            const a = data.address || {};
+
+            // Kelurahan: try suburb → village → neighbourhood → quarter
+            const kelurahan = a.suburb || a.village || a.neighbourhood || a.quarter || '';
+
+            // Kecamatan: try city_district → district → county
+            const kecamatan = a.city_district || a.district || a.county || '';
+
+            // ── Write fields ─────────────────────────────────
+            const addrEl    = document.getElementById('reportAddress');
+            const kelEl     = document.getElementById('reportKelurahan');
+            const kecEl     = document.getElementById('reportKecamatan');
+
+            // Address: always overwrite (forceOverwrite) or if empty
+            if (forceOverwrite || !addrEl.value.trim()) {
+                addrEl.value = fullAddr;
+                flashField(addrEl);
+            }
+
+            // Kelurahan: always overwrite
+            if (forceOverwrite || !kelEl.value.trim()) {
+                kelEl.value = kelurahan;
+                if (kelurahan) flashField(kelEl);
+            }
+
+            // Kecamatan: always overwrite
+            if (forceOverwrite || !kecEl.value.trim()) {
+                kecEl.value = kecamatan;
+                if (kecamatan) flashField(kecEl);
+            }
+
+            // Clear related errors since fields are now filled
+            if (addrEl.value.trim())    clearErr('errAddress');
+            if (kelEl.value.trim())     clearErr('errKelurahan');
+            if (kecEl.value.trim())     clearErr('errKecamatan');
+
+            setAddrSpinner('synced', 'Tersinkronisasi');
+            setCoordSub('synced');
+            setMapTip('synced');
+
+            // Auto-hide spinner after 3s
+            setTimeout(() => setAddrSpinner('hidden'), 3000);
+
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                isGeocodeFetching = false;
+                return; // intentionally cancelled — do nothing
+            }
+
+            // Fallback: fill address with raw coordinates if blank
+            const addrEl = document.getElementById('reportAddress');
+            const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            if (!addrEl.value.trim()) addrEl.value = fallback;
+
+            setAddrSpinner('error', 'Gagal mengambil alamat');
+            setCoordSub('error', 'Geocode gagal — isi manual');
+            console.warn('[Geocode]', err.message);
+        } finally {
+            isGeocodeFetching = false;
+        }
+    }, 380); // 380ms debounce — safe for drag events
+}
+
+// ============================================================
+// Build fallback address from Nominatim address components
+// ============================================================
+function buildFallbackAddress(data) {
+    if (!data?.address) return '';
+    const a = data.address;
+    return [
+        a.road,
+        a.house_number ? 'No. ' + a.house_number : '',
+        a.quarter, a.neighbourhood, a.suburb,
+        a.village || a.town || a.municipality,
+        a.city || a.county,
+        a.state,
+        a.country,
+    ].filter(Boolean).join(', ');
+}
+
+// Flash a field green briefly to signal auto-fill
+function flashField(el) {
+    el.classList.remove('geocode-flash');
+    void el.offsetWidth; // reflow
+    el.classList.add('geocode-flash');
+    el.addEventListener('animationend', () => el.classList.remove('geocode-flash'), { once: true });
+}
+
+// ============================================================
+// GPS
+// ============================================================
+function useGPS() {
+    const btn = document.getElementById('btnGps');
+    if (!navigator.geolocation) {
+        showToast('Browser tidak mendukung GPS.', 'error');
+        return;
+    }
+
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin-inline"></i> Mencari lokasi...';
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            placePin(lat, lng);
+            miniMap.flyTo([lat, lng], 17, { duration: 0.8 });
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fas fa-location-arrow"></i> Gunakan Lokasi Saya (GPS)';
+            showToast('Lokasi GPS berhasil ditemukan.', 'success');
+        },
+        (err) => {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fas fa-location-arrow"></i> Gunakan Lokasi Saya (GPS)';
+            const msgs = {
+                1: 'Izin GPS ditolak. Aktifkan di pengaturan browser Anda.',
+                2: 'Lokasi tidak dapat ditentukan. Tandai lokasi manual di peta.',
+                3: 'Waktu GPS habis. Coba lagi atau tandai manual.',
+            };
+            showToast(msgs[err.code] || 'GPS gagal.', 'error', 4500);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+}
+
+// ============================================================
+// SEVERITY SELECTOR
+// ============================================================
+function selectSeverity(val, el) {
+    document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('reportSeverity').value = val;
+    clearErr('errSeverity');
+}
+
+// ============================================================
+// DESCRIPTION COUNTER
+// ============================================================
+function updateDescCount() {
+    const len = document.getElementById('reportDescription').value.length;
+    const el  = document.getElementById('descCount');
+    el.textContent = `${len} / 500`;
+    el.style.color = len > 450 ? 'var(--warning)' : 'var(--text-muted)';
+}
+
+// ============================================================
+// ERROR HELPERS
+// ============================================================
+function showErr(id)  { document.getElementById(id)?.classList.add('show'); }
+function clearErr(id) {
+    document.getElementById(id)?.classList.remove('show');
+    // Remove red border from the sibling input/textarea/select
+    const errEl = document.getElementById(id);
+    if (errEl) {
+        const prev = errEl.previousElementSibling;
+        if (prev) {
+            const inp = prev.tagName === 'DIV'
+                ? prev.querySelector('input,textarea,select')
+                : prev;
+            inp?.classList.remove('error');
+        }
+    }
+}
+
+// ============================================================
+// VALIDATE — all fields required
+// ============================================================
+function validateForm() {
+    let ok = true;
+
+    // Helper: check a field and show/hide its error
+    function check(fieldId, errId, condition, markEl) {
+        const target = markEl || document.getElementById(fieldId);
+        if (!condition) {
+            showErr(errId);
+            target?.classList.add('error');
+            ok = false;
+        } else {
+            clearErr(errId);
+            target?.classList.remove('error');
+        }
+    }
+
+    const rName  = document.getElementById('reporterName').value.trim();
+    const rPhone = document.getElementById('reporterPhone').value.trim();
+    const hName  = document.getElementById('headName').value.trim();
+    const rt     = document.getElementById('reportRt').value.trim();
+    const rw     = document.getElementById('reportRw').value.trim();
+    const addr   = document.getElementById('reportAddress').value.trim();
+    const kel    = document.getElementById('reportKelurahan').value.trim();
+    const kec    = document.getElementById('reportKecamatan').value.trim();
+    const desc   = document.getElementById('reportDescription').value.trim();
+    const sev    = document.getElementById('reportSeverity').value;
+    const lat    = document.getElementById('reportLat').value;
+    const lng    = document.getElementById('reportLng').value;
+
+    // Phone validation: strip separators, check digit count
+    const phoneClean = rPhone.replace(/[\s\-\(\)]/g, '');
+    const phoneOk    = rPhone !== '' && /^\+?[\d]{8,15}$/.test(phoneClean);
+
+    check('reporterName',  'errReporterName',  rName !== '');
+    check('reporterPhone', 'errReporterPhone', phoneOk);
+    check('headName',      'errHeadName',      hName !== '');
+    check('reportRt',      'errRt',            rt !== '');
+    check('reportRw',      'errRw',            rw !== '');
+    check('reportAddress', 'errAddress',       addr !== '');
+    check('reportKelurahan','errKelurahan',    kel !== '');
+    check('reportKecamatan','errKecamatan',    kec !== '');
+    check('reportDescription','errDescription',desc.length >= 20);
+    check(null,            'errSeverity',      sev !== '', document.getElementById('reportSeverity'));
+    check(null,            'errCoord',         lat !== '' && lng !== '', document.getElementById('coordCard'));
+
+    return ok;
+}
+
+// ============================================================
+// SUBMIT
+// ============================================================
+async function submitReport() {
+    if (isGeocodeFetching) {
+        showToast('Sedang memperbarui alamat, harap tunggu.', 'warning', 2000);
+        return;
+    }
+
+    if (!validateForm()) {
+        const firstErr = document.querySelector('.field-error.show');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('Periksa kembali isian yang belum lengkap.', 'error');
+        return;
+    }
+
+    document.activeElement?.blur();
+    
+    const overlay = document.getElementById('loadingOverlay');
+    const btn = document.getElementById('submitBtn');
+    overlay.classList.add('show');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin-inline"></i> Mengirim...';
+
+    const payload = {
+        reporter_name: document.getElementById('reporterName').value.trim(),
+        reporter_phone: document.getElementById('reporterPhone').value.trim(),
+        head_name: document.getElementById('headName').value.trim(),
+        rt: document.getElementById('reportRt').value.trim(),
+        rw: document.getElementById('reportRw').value.trim(),
+        address: document.getElementById('reportAddress').value.trim(),
+        kelurahan: document.getElementById('reportKelurahan').value.trim(),
+        kecamatan: document.getElementById('reportKecamatan').value.trim(),
+        description: document.getElementById('reportDescription').value.trim(),
+        severity: document.getElementById('reportSeverity').value,
+        urgent_need: document.getElementById('reportUrgentNeed').value || '',
+        latitude: parseFloat(document.getElementById('reportLat').value),
+        longitude: parseFloat(document.getElementById('reportLng').value),
+    };
+
+    try {
+        console.log('Sending payload:', payload);
+        
+        const res = await fetch('api/public/report.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        
+        const responseText = await res.text();
+        console.log('Raw response:', responseText);
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            throw new Error('Server error: ' + responseText.substring(0, 200));
+        }
+
+        overlay.classList.remove('show');
+
+        if (data.success) {
+            const reportId = data.data?.id ?? '—';
+            document.getElementById('successReportId').textContent = '#' + reportId;
+            document.getElementById('formWrap').style.display = 'none';
+            document.getElementById('successCard').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            showToast(data.message || 'Gagal mengirim laporan.', 'error', 5000);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim Laporan';
+        }
+    } catch (err) {
+        console.error('Submit error:', err);
+        overlay.classList.remove('show');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim Laporan';
+        showToast('Koneksi gagal: ' + err.message, 'error', 5000);
+    }
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function resetForm() {
+    if (geocodeAbort)  { geocodeAbort.abort(); geocodeAbort = null; }
+    clearTimeout(geocodeTimer);
+    isGeocodeFetching = false;
+    selectedLat = null;
+    selectedLng = null;
+
+    // Clear all inputs
+    [
+        'reporterName','reporterPhone','headName',
+        'reportRt','reportRw','reportAddress',
+        'reportKelurahan','reportKecamatan','reportDescription',
+        'reportSeverity','reportLat','reportLng',
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.value = ''; el.classList.remove('error'); }
+    });
+
+    document.getElementById('reportUrgentNeed').value = '';
+    document.getElementById('descCount').textContent = '0 / 500';
+
+    // Reset severity buttons
+    document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
+
+    // Reset coord display
+    document.getElementById('coordValue').textContent = 'Belum dipilih';
+    document.getElementById('coordSub').textContent   = 'Klik peta untuk menentukan lokasi';
+    document.getElementById('coordCard').classList.remove('has-coord','fetching');
+
+    const hint = document.getElementById('coordHint');
+    hint.className = 'coord-hint';
+    hint.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Klik peta di sebelah kanan untuk menentukan lokasi rumah';
+
+    // Reset map
+    document.getElementById('miniMap').classList.remove('has-pin');
+    if (pinMarker) { miniMap.removeLayer(pinMarker); pinMarker = null; }
+
+    // Reset status indicators
+    setAddrSpinner('hidden');
+    const mapTip = document.getElementById('mapTip');
+    if (mapTip) {
+        mapTip.className = 'map-tip';
+        mapTip.innerHTML = '<i class="fas fa-info-circle"></i> Klik pada peta untuk menempatkan pin. Pin dapat digeser.';
+    }
+
+    // Hide all error messages
+    document.querySelectorAll('.field-error.show').forEach(e => e.classList.remove('show'));
+
+    // Show form, hide success
+    document.getElementById('formWrap').style.display    = '';
+    document.getElementById('successCard').style.display = 'none';
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = 'success', duration = 3200) {
+    const el = document.getElementById('toast');
+    clearTimeout(el._t);
+    el.textContent   = msg;
+    el.className     = 'toast ' + type;
+    el.style.display = 'block';
+    el._t = setTimeout(() => { el.style.display = 'none'; }, duration);
+}
+</script>
+</body>
+</html>

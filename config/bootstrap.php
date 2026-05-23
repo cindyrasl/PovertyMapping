@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// config/bootstrap.php  — Single-admin simplified version
+// config/bootstrap.php — with session support
 // ============================================================
 declare(strict_types=1);
 
@@ -20,29 +20,74 @@ if (APP_DEBUG) {
     ini_set('display_errors', '0');
 }
 
-// ---- Global exception handler ------------------------------
 set_exception_handler(function (Throwable $e) {
     $message = APP_DEBUG ? $e->getMessage() : 'Internal server error';
-    $code = $e->getCode() ?: 500;
-    Response::error($message, $code);
+    Response::error($message, 500);
 });
 
-// ---- CORS & Headers ---------------------------------------
+// ---- CORS & Security Headers --------------------------------
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 
 if (APP_ENV === 'development') {
     header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
 }
 
-// Preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-// ---- Output buffering (prevents accidental output) --------
 ob_start();
+
+// ---- Session bootstrap (shared by all APIs) -----------------
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('webgis_sess');
+    session_set_cookie_params([
+        'lifetime' => 0,           // until browser closes
+        'path'     => '/',
+        'secure'   => false,       // set true if using HTTPS
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
+// ---- Session helper functions --------------------------------
+
+/** Return current logged-in user array or null */
+function currentUser(): ?array
+{
+    if (empty($_SESSION['user_id']) || empty($_SESSION['role'])) {
+        return null;
+    }
+    return [
+        'id'    => (int)$_SESSION['user_id'],
+        'name'  => $_SESSION['name']  ?? '',
+        'email' => $_SESSION['email'] ?? '',
+        'role'  => $_SESSION['role'],
+    ];
+}
+
+/** Require authentication — returns user or sends 401 */
+function requireAuth(): array
+{
+    $user = currentUser();
+    if (!$user) {
+        Response::error('Silakan login terlebih dahulu.', 401);
+    }
+    return $user;
+}
+
+/** Require admin role — returns user or sends 403 */
+function requireAdmin(): array
+{
+    $user = requireAuth();
+    if ($user['role'] !== 'admin') {
+        Response::error('Akses ditolak. Hanya admin yang dapat melakukan tindakan ini.', 403);
+    }
+    return $user;
+}
