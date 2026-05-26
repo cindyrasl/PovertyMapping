@@ -95,7 +95,9 @@ function addCenterMarker(center) {
     const marker = L.marker([center.latitude, center.longitude], {
         icon: L.divIcon({
             html: `<div class="custom-marker-center" style="background:${color};"><i class="fas ${icon}"></i></div>`,
-            iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -34],
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -34],
             className: '',
         }),
         title: center.name,
@@ -134,7 +136,7 @@ function showCenterPopup(marker, center) {
     const icon = CENTER_ICONS[center.worship_type] || 'fa-place-of-worship';
     const label = CENTER_LABELS[center.worship_type] || center.worship_type;
     
-    // ⭐ HITUNG ULANG JUMLAH RUMAH SAAT POPUP DIBUKA (memastikan data fresh)
+    // Hitung ulang jumlah rumah saat popup dibuka (memastikan data fresh)
     let count = 0;
     let nearbyHouses = [];
     
@@ -195,7 +197,7 @@ function showCenterPopup(marker, center) {
             </div>
             <div class="popup-row"><i class="fas fa-map-marker-alt"></i><span>${truncate(center.address || '—', 42)}</span></div>
             
-            <!-- ⭐ JUMLAH RUMAH DALAM RADIUS (LIVE) -->
+            <!-- Jumlah Rumah dalam Radius (Live) -->
             <div class="popup-section" style="background: ${count > 0 ? color + '10' : 'var(--surface-2)'}">
                 <div class="popup-section-label"><i class="fas fa-home"></i> Cakupan Layanan</div>
                 <div class="popup-row" style="margin-bottom: 0;">
@@ -251,7 +253,7 @@ function liveUpdateRadius(centerId, value) {
         radiusCircles[centerId].setRadius(parseInt(value));
     }
     
-    // ⭐ LIVE UPDATE: Hitung ulang jumlah rumah saat slider digeser
+    // Live update: Hitung ulang jumlah rumah saat slider digeser
     const center = State.centers.find(c => c.id == centerId);
     if (center) {
         let tempCount = 0;
@@ -285,14 +287,14 @@ async function saveRadius(centerId, value) {
             const center = State.centers.find(c => c.id == centerId);
             if (center) {
                 center.radius = parseInt(value);
-                // ⭐ PERBARUI LINGKARAN DI PETA
+                // Perbarui lingkaran di peta
                 if (radiusCircles[centerId]) {
                     radiusCircles[centerId].setRadius(parseInt(value));
                 }
             }
             showToast('Radius diperbarui.', 'success');
             
-            // ⭐ UPDATE SEMUA DATA YANG TERPENGARUH
+            // Update semua data yang terpengaruh
             updateAllHouseColors();
             recountCenterHouseholds();      // Hitung ulang jumlah rumah per center
             renderHouseList();               // Refresh daftar rumah
@@ -300,7 +302,7 @@ async function saveRadius(centerId, value) {
             updateLayerCounts();             // Update badge layer
             loadStats();                     // Update statistik dashboard
             
-            // ⭐ REFRESH POPUP CENTER JIKA TERBUKA
+            // Refresh popup center jika terbuka
             if (center._marker && center._marker.isPopupOpen()) {
                 showCenterPopup(center._marker, center);
             }
@@ -320,7 +322,11 @@ async function showCoverageHouseholds(centerId) {
     const tempLayer = L.layerGroup();
     households.forEach(h => {
         L.circleMarker([h.latitude, h.longitude], {
-            radius: 10, color: '#3a56d4', fillColor: '#3a56d4', fillOpacity: 0.25, weight: 2,
+            radius: 10,
+            color: '#3a56d4',
+            fillColor: '#3a56d4',
+            fillOpacity: 0.25,
+            weight: 2,
         }).addTo(tempLayer).bindTooltip(h.head_name, { permanent: false });
     });
     tempLayer.addTo(MAP);
@@ -359,7 +365,9 @@ function renderHouses() {
                 h._marker._houseColor = newColor;
                 h._marker.setIcon(L.divIcon({
                     html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-                    iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 26],
+                    popupAnchor: [0, -28],
                     className: '',
                 }));
             }
@@ -433,7 +441,9 @@ function updateAllHouseColors() {
                 h._marker._houseColor = newColor;
                 h._marker.setIcon(L.divIcon({
                     html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-                    iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 26],
+                    popupAnchor: [0, -28],
                     className: '',
                 }));
             }
@@ -441,7 +451,35 @@ function updateAllHouseColors() {
     });
 }
 
-// assets/js/markers.js — showHousePopup (redesigned popup)
+// Fungsi untuk mendapatkan foto rumah (akan digunakan di popup)
+function getHousePhotosHtml(houseData) {
+    if (!houseData.house_photos) return '';
+    let photosArr = [];
+    try { photosArr = JSON.parse(houseData.house_photos); } catch(e) { return ''; }
+    if (!photosArr.length) return '';
+    
+    const thumbnails = photosArr.slice(0, 4).map(name => 
+        `<img src="uploads/houses/${encodeURIComponent(name)}" 
+            style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e6ef;cursor:zoom-in;"
+            onclick="event.stopPropagation(); PhotoUpload.lightbox('uploads/houses/${encodeURIComponent(name)}')"
+            title="Foto rumah">`
+    ).join('');
+    
+    return `
+        <div class="hp-section">
+            <div class="hp-section-header">
+                <i class="fas fa-camera"></i>
+                <span>Foto Rumah</span>
+                <span class="hp-count">${photosArr.length}</span>
+            </div>
+            <div class="popup-photo-strip" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">
+                ${thumbnails}
+                ${photosArr.length > 4 ? `<span style="font-size:10px;color:#9ba4b5;margin-left:4px;">+${photosArr.length - 4} foto</span>` : ''}
+            </div>
+        </div>`;
+}
+
+// showHousePopup (redesigned popup)
 async function showHousePopup(marker, h, forceRefresh = false) {
     let houseData = h;
 
@@ -468,9 +506,9 @@ async function showHousePopup(marker, h, forceRefresh = false) {
     }
 
     // ── Derived values ───────────────────────────────────────────────
-    const hasAid        = (houseData.aid_history && houseData.aid_history.length > 0);
+    const hasAid = (houseData.aid_history && houseData.aid_history.length > 0);
     const aidStatusText = hasAid ? 'Penerima Bantuan' : 'Belum Ada Bantuan';
-    const aidStatusColor= hasAid ? '#0b9e73' : '#d97706';
+    const aidStatusColor = hasAid ? '#0b9e73' : '#d97706';
 
     let age = '—';
     if (houseData.head_date_of_birth) {
@@ -516,8 +554,8 @@ async function showHousePopup(marker, h, forceRefresh = false) {
     let membersHtml = '';
     if (houseData.household_members && houseData.household_members.length) {
         const members = houseData.household_members;
-        const shown   = members.slice(0, 5);
-        const extra   = members.length - shown.length;
+        const shown = members.slice(0, 5);
+        const extra = members.length - shown.length;
         membersHtml = `
         <div class="hp-section">
             <div class="hp-section-header">
@@ -548,7 +586,7 @@ async function showHousePopup(marker, h, forceRefresh = false) {
     let aidHistoryHtml = '';
     if (hasAid) {
         const latestAids = houseData.aid_history.slice(0, 5);
-        const extraAids  = houseData.aid_history.length - latestAids.length;
+        const extraAids = houseData.aid_history.length - latestAids.length;
         aidHistoryHtml = `
         <div class="hp-section">
             <div class="hp-section-header">
@@ -589,8 +627,11 @@ async function showHousePopup(marker, h, forceRefresh = false) {
         : '';
 
     // ── Coordinates ──────────────────────────────────────────────────
-    const lat = (houseData.latitude  || marker.getLatLng().lat).toFixed(6);
+    const lat = (houseData.latitude || marker.getLatLng().lat).toFixed(6);
     const lng = (houseData.longitude || marker.getLatLng().lng).toFixed(6);
+
+    // ── Photos Html ──────────────────────────────────────────────────
+    const photosHtml = getHousePhotosHtml(houseData);
 
     // ── Build popup ──────────────────────────────────────────────────
     const popup = L.popup({ maxWidth: 360, minWidth: 300, closeButton: true, className: 'hp-leaflet-popup' })
@@ -598,7 +639,7 @@ async function showHousePopup(marker, h, forceRefresh = false) {
         .setContent(`
         <div class="hp-popup">
 
-            <!-- ── HEADER ───────────────────────────────── -->
+            <!-- HEADER -->
             <div class="hp-header">
                 <div class="hp-drag-hint" title="Seret marker untuk memindahkan">
                     <i class="fas fa-up-down-left-right"></i>
@@ -612,7 +653,7 @@ async function showHousePopup(marker, h, forceRefresh = false) {
                 </div>
             </div>
 
-            <!-- ── STATUS STRIP ─────────────────────────── -->
+            <!-- STATUS STRIP -->
             <div class="hp-status-strip">
                 <div class="hp-status-chip" style="background:${povColor}14;color:${povColor};border-color:${povColor}30;">
                     <span class="hp-chip-dot" style="background:${povColor};"></span>${povLabel}
@@ -622,7 +663,7 @@ async function showHousePopup(marker, h, forceRefresh = false) {
                 </div>
             </div>
 
-            <!-- ── SCROLLABLE BODY ──────────────────────── -->
+            <!-- SCROLLABLE BODY -->
             <div class="hp-body">
 
                 <!-- Location -->
@@ -636,6 +677,9 @@ async function showHousePopup(marker, h, forceRefresh = false) {
                     ${centerHtml}
                     <div class="hp-coords"><i class="fas fa-crosshairs"></i>${lat}, ${lng}</div>
                 </div>
+
+                <!-- Photos -->
+                ${photosHtml}
 
                 <!-- Head of Household -->
                 <div class="hp-section">
@@ -671,7 +715,7 @@ async function showHousePopup(marker, h, forceRefresh = false) {
 
             </div><!-- /.hp-body -->
 
-            <!-- ── ACTIONS ──────────────────────────────── -->
+            <!-- ACTIONS -->
             <div class="hp-actions">
                 <button class="hp-btn hp-btn-primary" onclick="editHouse(${houseData.id})">
                     <i class="fas fa-pen"></i> Edit
@@ -696,7 +740,9 @@ function addHouseMarker(h) {
     const marker = L.marker([h.latitude, h.longitude], {
         icon: L.divIcon({
             html: `<div class="custom-marker-house" style="background:${color};"><i class="fas fa-home"></i></div>`,
-            iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+            iconSize: [26, 26],
+            iconAnchor: [13, 26],
+            popupAnchor: [0, -28],
             className: '',
         }),
         title: h.head_name,
@@ -722,7 +768,9 @@ function addHouseMarker(h) {
             marker._houseColor = newColor;
             marker.setIcon(L.divIcon({
                 html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-                iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+                iconSize: [26, 26],
+                iconAnchor: [13, 26],
+                popupAnchor: [0, -28],
                 className: '',
             }));
         }
@@ -744,7 +792,9 @@ function addHouseMarker(h) {
         marker._houseColor = newColor;
         marker.setIcon(L.divIcon({
             html: `<div class="custom-marker-house" style="background:${newColor};"><i class="fas fa-home"></i></div>`,
-            iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -28],
+            iconSize: [26, 26],
+            iconAnchor: [13, 26],
+            popupAnchor: [0, -28],
             className: '',
         }));
         
@@ -755,7 +805,7 @@ function addHouseMarker(h) {
             h.full_address = newAddress;
         } catch (err) {}
         
-        // ⭐ SAVE ke database via API
+        // Save ke database via API
         showLoading(true);
         try {
             const r = await ApiHouses.patch(h.id, { 
@@ -772,9 +822,9 @@ function addHouseMarker(h) {
                 }
                 showToast('Posisi rumah berhasil diperbarui.', 'success');
                 
-                // ⭐⭐⭐ URUTAN YANG BENAR - UPDATE STATE DULU ⭐⭐⭐
+                // Urutan yang benar - update state dulu
                 
-                // 1. UPDATE data di State (HARUS PERTAMA)
+                // 1. Update data di State (Harus pertama)
                 const index = State.houses.findIndex(hi => hi.id === h.id);
                 if (index !== -1) {
                     State.houses[index] = h;

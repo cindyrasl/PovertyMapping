@@ -1,0 +1,13 @@
+# Mencegah eksekusi file PHP di folder uploads
+<FilesMatch "\.(php|php3|php4|php5|phtml|shtml|cgi|pl|py|rb|sh|asp|aspx|cfm|htaccess)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Menonaktifkan daftar direktori
+Options -Indexes
+
+# Mencegah MIME sniffing
+<FilesMatch "\.(jpg|jpeg|png)$">
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
