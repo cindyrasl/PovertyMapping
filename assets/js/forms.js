@@ -228,6 +228,15 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
         // Sembunyikan tombol add aid (karena household belum tersimpan)
         const addAidBtn = document.getElementById('addAidBtn');
         if (addAidBtn) addAidBtn.style.display = 'none';
+
+        const savedStrip = document.getElementById('houseSavedPhotoStrip');
+        const newStrip   = document.getElementById('housePhotoStrip');
+        const photoInput = document.getElementById('housePhotos');
+        if (savedStrip) {
+            savedStrip.innerHTML = '';
+            newStrip.innerHTML   = '';
+            if (photoInput) photoInput.value = '';
+        }
         
         cancelPlacementMode();
         openModal('houseModal');
@@ -245,6 +254,8 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
         document.getElementById('houseFullAddress').value = '';
         document.getElementById('houseLatDisplay').value = '';
         document.getElementById('houseLngDisplay').value = '';
+        document.getElementById('houseSavedPhotoStrip').innerHTML = '';
+        document.getElementById('housePhotoStrip').innerHTML      = '';
         document.getElementById('managingCenterId').value = '';
         document.getElementById('managingCenterName').value = '';
         document.getElementById('houseHeadName').value = '';
@@ -258,6 +269,9 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
         document.getElementById('houseLandOwnership').value = 'milik';
         document.getElementById('houseDescription').value = '';
         document.getElementById('houseAidStatus').value = 'not_yet';
+
+        const photoInput = document.getElementById('housePhotos');
+        if (photoInput) photoInput.value = '';
         
         const familyContainer = document.getElementById('familyMembersList');
         if (familyContainer) {
@@ -389,6 +403,22 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
             renderAidHistory(h.aid_history);
         } else {
             renderAidHistory([]);
+        }
+
+        const savedStrip = document.getElementById('houseSavedPhotoStrip');
+        const newStrip   = document.getElementById('housePhotoStrip');
+        const photoInput = document.getElementById('housePhotos');
+        if (savedStrip) {
+            savedStrip.innerHTML = '';
+            newStrip.innerHTML   = '';
+            if (photoInput) photoInput.value = '';
+            
+            const photos = JSON.parse(h.house_photos || '[]');
+            if (photos.length) {
+                savedStrip.appendChild(
+                    PhotoUpload.buildSavedStrip(photos, 'uploads/houses/', false)
+                );
+            }
         }
         
         // Tampilkan tombol add aid jika household sudah ada di database
@@ -809,13 +839,57 @@ function initHouseFormValidation() {
     });
 }
 
+/* ================================================================
+   Photo upload — houseModal wiring
+   ================================================================ */
+(function() {
+    const zone  = document.getElementById('housePhotoZone');
+    const input = document.getElementById('housePhotos');
+    if (!zone || !input) return;
+
+    const strip   = document.getElementById('housePhotoStrip');
+    const errEl   = document.getElementById('housePhotoError');
+    const savedEl = document.getElementById('houseSavedPhotoStrip');
+
+    function showErr(msg) { errEl.textContent = msg; errEl.classList.add('show'); }
+    function clearErr()   { errEl.classList.remove('show'); }
+
+    function currentSavedCount() {
+        return savedEl ? savedEl.querySelectorAll('div').length : 0;
+    }
+
+    function handleFiles(fileList) {
+        clearErr();
+        const v = PhotoUpload.validate(fileList, currentSavedCount());
+        if (!v.valid) { showErr(v.message); input.value = ''; return; }
+        strip.innerHTML = '';
+        strip.appendChild(PhotoUpload.buildPreviewStrip(fileList));
+    }
+
+    input.addEventListener('change', () => handleFiles(input.files));
+
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        try {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+            input.files = dt.files;
+            handleFiles(input.files);
+        } catch(_) {
+            showErr('Drag & drop tidak didukung. Klik untuk memilih file.');
+        }
+    });
+})();
+
 // Modify the houseForm submit handler
 document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // ⭐ VALIDATE FORM FIRST
+    // VALIDATE FORM FIRST
     if (!validateHouseForm()) {
-        // Scroll to first error
         const firstError = document.querySelector('.field-error.show');
         if (firstError) {
             firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -867,7 +941,19 @@ document.getElementById('houseForm')?.addEventListener('submit', async (e) => {
     showLoading(true);
     try {
         const r = id ? await ApiHouses.update(id, body) : await ApiHouses.create(body);
-        if (r.ok && r.data?.success) { 
+        if (r.ok && r.data?.success) {
+            // ── Upload photos ─────────────────────────────────────
+            const savedId = id || r.data.data?.id;
+            const photoInput = document.getElementById('housePhotos');
+            if (savedId && photoInput?.files?.length) {
+                const upRes = await PhotoUpload.upload('house', savedId, photoInput.files);
+                if (!upRes.ok || !upRes.data?.success) {
+                    showToast('Data disimpan, tapi foto gagal diunggah: ' + (upRes.data?.message || ''), 'error', 5000);
+                }
+                photoInput.value = '';
+            }
+            // ── End upload ────────────────────────────────────────
+            
             closeModal('houseModal'); 
             cancelPlacementMode(); 
             showToast(id ? 'Data rumah diperbarui.' : 'Rumah berhasil ditambahkan.', 'success'); 

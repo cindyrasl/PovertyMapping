@@ -452,6 +452,18 @@
         </div>
 
         <div class="form-group"><label>Keterangan</label><textarea id="houseDescription" rows="2" placeholder="Informasi tambahan..."></textarea></div>
+        <!-- Foto Rumah -->
+        <div class="form-group">
+            <label>Foto Rumah <span style="font-weight:400;font-size:10.5px;color:var(--text-muted);">(opsional · maks. 5 foto · 5 MB)</span></label>
+            <div class="photo-upload-zone" id="housePhotoZone" onclick="document.getElementById('housePhotos').click()">
+                <i class="fas fa-camera puz-icon"></i>
+                <span class="puz-label">Klik atau seret foto ke sini · JPG / PNG</span>
+                <input type="file" id="housePhotos" accept=".jpg,.jpeg,.png" multiple>
+            </div>
+            <div class="photo-strip" id="housePhotoStrip"></div>
+            <div class="photo-strip" id="houseSavedPhotoStrip"></div>
+            <div class="photo-error-msg" id="housePhotoError"></div>
+        </div>
         <div class="form-row">
             <div class="form-group"><label>Latitude</label><input type="text" id="houseLatDisplay" readonly></div>
             <div class="form-group"><label>Longitude</label><input type="text" id="houseLngDisplay" readonly></div>
@@ -570,6 +582,7 @@
         <span class="modal-close" onclick="closeModal('approveModal')">&times;</span>
     </div>
     <div id="approveReportPreview" style="background:var(--surface-2);border-radius:var(--r);padding:12px;margin-bottom:14px;font-size:12px;"></div>
+    <div class="photo-strip" id="approvePhotoPreview" style="margin-top:8px;"></div>
     <form id="approveForm" novalidate>
         <input type="hidden" id="approveReportId">
         <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Data rumah tangga akan dibuat dengan nilai default. Petugas dapat mengedit lengkap setelah data masuk ke peta.</p>
@@ -659,6 +672,7 @@
 <script src="assets/js/dashboard.js"></script>
 <script src="assets/js/admin.js"></script>
 <script src="assets/js/public-reports.js"></script>
+<script src="assets/js/photo-upload.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 'use strict';

@@ -966,3 +966,74 @@ body {
     .legend { display: none; }
     .chart-canvas-wrap { min-height: 160px; }
 }
+
+/* ── Photo upload widget ──────────────────────────────────────── */
+.photo-upload-zone {
+    border: 2px dashed var(--border, #e2e6ef);
+    border-radius: 10px;
+    padding: 14px 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: var(--bg-secondary, #f8f9fc);
+    margin-top: 2px;
+}
+.photo-upload-zone:hover,
+.photo-upload-zone.dragover {
+    border-color: var(--accent, #5c72f5);
+    background: rgba(92,114,245,.05);
+}
+.photo-upload-zone input[type="file"] {
+    display: none;
+}
+.photo-upload-zone .puz-label {
+    font-size: 12px;
+    color: var(--text-muted, #9ba4b5);
+    margin-top: 6px;
+    display: block;
+}
+.photo-upload-zone .puz-icon {
+    font-size: 22px;
+    color: var(--accent, #5c72f5);
+    opacity: .7;
+}
+.photo-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    min-height: 0;
+}
+.photo-thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1.5px solid var(--border, #e2e6ef);
+    transition: transform .15s;
+}
+.photo-thumb:hover { transform: scale(1.06); }
+.photo-error-msg {
+    font-size: 11px;
+    color: var(--danger, #d63230);
+    margin-top: 5px;
+    display: none;
+}
+.photo-error-msg.show { display: block; }
+/* Popup photo strip */
+.popup-photo-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+}
+.popup-photo-strip img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1.5px solid #e2e6ef;
+    cursor: zoom-in;
+    transition: transform .15s;
+}
+.popup-photo-strip img:hover { transform: scale(1.08); }

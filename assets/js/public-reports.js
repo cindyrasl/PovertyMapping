@@ -90,7 +90,10 @@ async function loadPendingReports() {
                     : ''}
             </td>
             <td style="font-size:10.5px;color:#5a6478;max-width:130px;padding-top:10px;">${escapeHtml(truncate(rep.address || '—', 38))}</td>
-            <td style="font-size:10.5px;color:#5a6478;max-width:160px;padding-top:10px;">${escapeHtml(truncate(rep.description || '—', 60))}</td>
+            <td style="font-size:10.5px;color:#5a6478;max-width:160px;padding-top:10px;">
+                ${escapeHtml(truncate(rep.description || '—', 60))}
+                ${buildPhotoMiniStrip(rep.proof_photos, 'uploads/reports/')}
+            </td>
             <td style="padding-top:10px;">
                 <span style="padding:3px 9px;border-radius:20px;font-size:9.5px;font-weight:700;
                     background:${st.bg};color:${st.color};white-space:nowrap;">${st.label}</span>
@@ -124,6 +127,33 @@ async function loadPendingReports() {
     }).join('');
 }
 
+/**
+ * Renders a tiny inline strip of photo thumbnails in the admin table.
+ * photos: JSON string or array of filenames; baseUrl: path prefix.
+ */
+function buildPhotoMiniStrip(photos, baseUrl) {
+    let arr = [];
+    try { 
+        arr = typeof photos === 'string' ? JSON.parse(photos) : (photos || []); 
+    } catch(e) { 
+        console.warn('buildPhotoMiniStrip parse error:', e);
+        return ''; 
+    }
+    if (!arr.length) return '';
+    
+    const imgs = arr.slice(0, 3).map(name => {
+        const safeName = encodeURIComponent(name);
+        const src = baseUrl + safeName;
+        return `<img src="${src}" 
+            style="width:36px;height:36px;object-fit:cover;border-radius:5px;border:1.5px solid #e2e6ef;cursor:zoom-in;margin-right:3px;"
+            onclick="PhotoUpload.lightbox('${src}')"
+            title="${escapeHtml(name)}">`;
+    }).join('');
+    
+    const extra = arr.length > 3 ? `<span style="font-size:10px;color:#9ba4b5;">+${arr.length - 3}</span>` : '';
+    return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:5px;">${imgs}${extra}</div>`;
+}
+
 /** Safely JSON-encode report object for inline onclick attribute */
 function safeJson(obj) {
     return JSON.stringify(obj)
@@ -138,14 +168,16 @@ function safeJson(obj) {
 // Approve modal
 // ================================================================
 function openApproveModal(reportId, reportData) {
-    document.getElementById('approveReportId').value  = reportId;
-    document.getElementById('approveIncome').value     = 0;
+    document.getElementById('approveReportId').value = reportId;
+    document.getElementById('approveIncome').value = 0;
     document.getElementById('approveDependents').value = 1;
-    document.getElementById('approveCondition').value  = 'tidak_layak';
-    document.getElementById('approveEducation').value  = 'sd';
-    document.getElementById('approveNotes').value      = '';
+    document.getElementById('approveCondition').value = 'tidak_layak';
+    document.getElementById('approveEducation').value = 'sd';
+    document.getElementById('approveNotes').value = '';
 
     const preview = document.getElementById('approveReportPreview');
+    const photoPreview = document.getElementById('approvePhotoPreview');
+    
     if (preview && reportData) {
         const data = typeof reportData === 'string' ? JSON.parse(reportData) : reportData;
         preview.innerHTML = `
@@ -160,6 +192,24 @@ function openApproveModal(reportId, reportData) {
                     ${data.reporter_name ? `<div style="font-size:10.5px;color:#9ba4b5;margin-top:4px;"><i class="fas fa-user" style="font-size:9px;"></i> ${data.reporter_name}</div>` : ''}
                 </div>
             </div>`;
+        
+        // ── TAMPILKAN FOTO BUKTI ──────────────────────────────
+        if (photoPreview) {
+            let photosArr = [];
+            try { 
+                photosArr = typeof data.proof_photos === 'string' ? JSON.parse(data.proof_photos) : (data.proof_photos || []); 
+            } catch(e) { 
+                console.warn('Failed to parse proof_photos:', e);
+            }
+            
+            if (photosArr.length) {
+                photoPreview.innerHTML = '';
+                const strip = PhotoUpload.buildSavedStrip(photosArr, 'uploads/reports/', false);
+                photoPreview.appendChild(strip);
+            } else {
+                photoPreview.innerHTML = '<div style="font-size:11px;color:#9ba4b5;padding:8px 0;"><i class="fas fa-image"></i> Tidak ada foto bukti</div>';
+            }
+        }
     }
 
     openModal('approveModal');
