@@ -60,6 +60,11 @@ try {
         requireAdmin();
         handleDelete($id);
     }
+    elseif ($method === 'POST' && $action === 'delete_photo' && $id) {
+        requireAuth(); // at minimum logged in
+        handleDeletePhoto($id, 'public_reports', 'proof_photos',
+            __DIR__ . '/../../uploads/reports/');
+    }
     else {
         jsonError('Method or action not allowed', 405);
     }
@@ -144,6 +149,11 @@ function handleCreate(): void
     $allowedSeverity = ['ringan', 'sedang', 'berat', 'kritis'];
     if (!in_array($data['severity'], $allowedSeverity)) {
         jsonError('Tingkat urgensi tidak valid.', 422);
+    }
+    // Photo requirement 
+    $photoCount = (int)($data['proof_photo_count'] ?? -1);
+    if ($photoCount === 0) {
+        jsonError('Foto bukti wajib diunggah minimal 1 foto.', 422);
     }
     
     // Rate limit
@@ -338,6 +348,66 @@ function handleReject(int $id): void
     }
     
     jsonSuccess(null, 'Laporan ditolak.');
+}
+
+// ============================================================
+// DELETE SINGLE PHOTO (shared by report & house endpoints)
+// ============================================================
+function handleDeletePhoto(int $id, string $table, string $col, string $dir): void
+{
+    // Role guard: admin or field_officer only
+    $user = requireAuth();
+    $role = $user['role'] ?? '';
+    if (!in_array($role, ['admin', 'field_officer'], true)) {
+        jsonError('Akses ditolak. Hanya admin atau petugas lapangan.', 403);
+    }
+
+    $data     = json_decode(file_get_contents('php://input'), true) ?? [];
+    $filename = trim($data['filename'] ?? '');
+
+    // Security: filename must be a plain filename with no path separators
+    if ($filename === '' || preg_match('/[\/\\\\]/', $filename) ||
+        !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
+        jsonError('Nama file tidak valid.', 400);
+    }
+
+    // Must end with allowed extension
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+        jsonError('Ekstensi file tidak diizinkan.', 400);
+    }
+
+    $pdo  = Database::get();
+    $stmt = $pdo->prepare("SELECT $col FROM $table WHERE id = ?");
+    $stmt->execute([$id]);
+    $row  = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        jsonError('Data tidak ditemukan.', 404);
+    }
+
+    $photos = json_decode($row[$col] ?? '[]', true) ?: [];
+
+    // Check file is actually in this record's photo list (prevents arbitrary deletion)
+    if (!in_array($filename, $photos, true)) {
+        jsonError('File tidak ditemukan dalam data ini.', 404);
+    }
+
+    // Remove from array
+    $photos = array_values(array_filter($photos, fn($p) => $p !== $filename));
+
+    // Update DB
+    $upd = $pdo->prepare("UPDATE $table SET $col = ? WHERE id = ?");
+    $upd->execute([json_encode($photos, JSON_UNESCAPED_UNICODE), $id]);
+
+    // Delete physical file — realpath check prevents traversal
+    $fullPath = realpath($dir . $filename);
+    $realDir  = realpath($dir);
+    if ($fullPath && $realDir && str_starts_with($fullPath, $realDir)) {
+        @unlink($fullPath);
+    }
+
+    jsonSuccess(['remaining' => $photos], 'Foto berhasil dihapus.');
 }
 
 // ============================================================

@@ -204,7 +204,13 @@ function openApproveModal(reportId, reportData) {
             
             if (photosArr.length) {
                 photoPreview.innerHTML = '';
-                const strip = PhotoUpload.buildSavedStrip(photosArr, 'uploads/reports/', false);
+                const rId = reportId; // capture for closure
+                const strip = PhotoUpload.buildSavedStrip(
+                    photosArr,
+                    'uploads/reports/',
+                    true,   // always removable in admin approve-modal
+                    (filename, wrap) => deleteReportPhoto(rId, filename, wrap)
+                );
                 photoPreview.appendChild(strip);
             } else {
                 photoPreview.innerHTML = '<div style="font-size:11px;color:#9ba4b5;padding:8px 0;"><i class="fas fa-image"></i> Tidak ada foto bukti</div>';
@@ -315,6 +321,25 @@ function flyToPublicReport(lat, lng) {
 }
 
 // ================================================================
+// Delete a single proof photo from a public report
+// ================================================================
+async function deleteReportPhoto(reportId, filename, thumbWrap) {
+    if (!confirm('Hapus foto bukti ini secara permanen?')) return;
+
+    if (thumbWrap) thumbWrap.style.opacity = '0.4';
+
+    const r = await PhotoUpload.deletePhoto('report', reportId, filename);
+
+    if (r.ok && r.data?.success) {
+        thumbWrap?.remove();
+        showToast('Foto bukti dihapus.', 'success');
+    } else {
+        if (thumbWrap) thumbWrap.style.opacity = '1';
+        showToast(r.data?.message || 'Gagal menghapus foto.', 'error');
+    }
+}
+
+// ================================================================
 // Expose to global scope
 // ================================================================
 window.loadPendingReports  = loadPendingReports;
@@ -322,3 +347,4 @@ window.openApproveModal    = openApproveModal;
 window.openRejectModal     = openRejectModal;
 window.deletePublicReport  = deletePublicReport;
 window.flyToPublicReport   = flyToPublicReport;
+window.deleteReportPhoto   = deleteReportPhoto;

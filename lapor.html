@@ -723,7 +723,8 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
                     <!-- ── Foto Bukti ──────────────────────────────────────── -->
                     <div class="form-group" style="margin-top:4px;">
                         <label style="font-weight:700;font-size:11.5px;letter-spacing:0.04em;text-transform:uppercase;">
-                            Foto Bukti <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(opsional, maks. 5 foto · 5 MB)</span>
+                            Foto Bukti <span class="req">*</span>
+                            <span style="font-weight:400;color:var(--text-muted);text-transform:none;">(wajib, maks. 5 foto · 5 MB)</span>
                         </label>
                         <div class="photo-upload-zone" id="reportPhotoZone" onclick="document.getElementById('reportPhotos').click()">
                             <i class="fas fa-camera puz-icon"></i>
@@ -732,6 +733,10 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
                         </div>
                         <div class="photo-strip" id="reportPhotoStrip"></div>
                         <div class="photo-error-msg" id="reportPhotoError"></div>
+                        <div class="field-error" id="errPhoto">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Foto bukti wajib diunggah minimal 1 foto.
+                        </div>
                     </div>
 
                     <!-- hidden inputs -->
@@ -1224,6 +1229,18 @@ function validateForm() {
     check(null,            'errSeverity',      sev !== '', document.getElementById('reportSeverity'));
     check(null,            'errCoord',         lat !== '' && lng !== '', document.getElementById('coordCard'));
 
+    // Photo is mandatory
+    const photoInput = document.getElementById('reportPhotos');
+    const hasPhotos  = photoInput && photoInput.files && photoInput.files.length > 0;
+    if (!hasPhotos) {
+        showErr('errPhoto');
+        document.getElementById('reportPhotoZone')?.classList.add('dragover'); // red-ish highlight
+        ok = false;
+    } else {
+        clearErr('errPhoto');
+        document.getElementById('reportPhotoZone')?.classList.remove('dragover');
+    }
+
     return ok;
 }
 
@@ -1265,6 +1282,7 @@ async function submitReport() {
         urgent_need: document.getElementById('reportUrgentNeed').value || '',
         latitude: parseFloat(document.getElementById('reportLat').value),
         longitude: parseFloat(document.getElementById('reportLng').value),
+        proof_photo_count: document.getElementById('reportPhotos')?.files?.length ?? 0,
     };
 
     try {
@@ -1416,6 +1434,8 @@ function showToast(msg, type = 'success', duration = 3200) {
     
     function clearErr() {
         errEl.classList.remove('show');
+        document.getElementById('errPhoto')?.classList.remove('show');
+        document.getElementById('reportPhotoZone')?.classList.remove('dragover');
     }
     
     function handleFiles(fileList) {

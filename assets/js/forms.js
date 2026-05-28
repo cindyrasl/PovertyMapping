@@ -415,8 +415,14 @@ async function openHouseModal(id = null, lat = null, lng = null, address = '') {
             
             const photos = JSON.parse(h.house_photos || '[]');
             if (photos.length) {
+                const hId = id; // capture for closure
                 savedStrip.appendChild(
-                    PhotoUpload.buildSavedStrip(photos, 'uploads/houses/', false)
+                    PhotoUpload.buildSavedStrip(
+                        photos,
+                        'uploads/houses/',
+                        window.canDelete ?? false,   // removable only for admin/officer
+                        (filename, wrap) => deleteHousePhoto(hId, filename, wrap)
+                    )
                 );
             }
         }
@@ -842,6 +848,29 @@ function initHouseFormValidation() {
 /* ================================================================
    Photo upload — houseModal wiring
    ================================================================ */
+
+/* ================================================================
+   deleteHousePhoto — called from the × button on saved photo thumbs
+   ================================================================ */
+async function deleteHousePhoto(householdId, filename, thumbWrap) {
+    if (!confirm('Hapus foto ini secara permanen?')) return;
+
+    // Optimistic UI: dim the thumb immediately
+    if (thumbWrap) thumbWrap.style.opacity = '0.4';
+
+    const r = await PhotoUpload.deletePhoto('house', householdId, filename);
+
+    if (r.ok && r.data?.success) {
+        // Remove thumb from DOM
+        thumbWrap?.remove();
+        showToast('Foto dihapus.', 'success');
+    } else {
+        // Restore opacity on failure
+        if (thumbWrap) thumbWrap.style.opacity = '1';
+        showToast(r.data?.message || 'Gagal menghapus foto.', 'error');
+    }
+}
+
 (function() {
     const zone  = document.getElementById('housePhotoZone');
     const input = document.getElementById('housePhotos');
