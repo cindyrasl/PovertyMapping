@@ -128,4 +128,32 @@ const PhotoUpload = {
             return { ok: false, data: { success: false, message: 'Upload gagal: ' + err.message } };
         }
     },
+    /**
+     * Delete a single saved photo via API.
+     * @param {string} target   'report' | 'house'
+     * @param {number} id       Record's database id
+     * @param {string} filename The filename to delete
+     * @returns {Promise<{ok: boolean, data: object}>}
+     */
+    async deletePhoto(target, id, filename) {
+        const endpointMap = {
+            report: 'api/public/report.php',
+            house:  'api/houses/index.php',
+        };
+        const url = endpointMap[target];
+        if (!url) return { ok: false, data: { success: false, message: 'Target tidak valid.' } };
+
+        try {
+            const res = await fetch(`${url}?action=delete_photo&id=${id}`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ filename }),
+            });
+            const data = await res.json();
+            return { ok: res.ok, data };
+        } catch (err) {
+            console.error('[PhotoUpload] deletePhoto error:', err);
+            return { ok: false, data: { success: false, message: 'Koneksi gagal: ' + err.message } };
+        }
+    },
 };

@@ -408,6 +408,59 @@ switch ("$method:$action") {
         break;
     }
 
+    // ================================================================
+    // DELETE PHOTO — hapus foto rumah tangga satu per satu
+    // ================================================================
+    case 'POST:delete_photo': {
+        requireAuth();
+        if (!$id) Response::error('ID is required.', 400);
+        
+        $data = Validator::json();
+        $filename = trim($data['filename'] ?? '');
+        
+        if ($filename === '' || preg_match('/[\/\\\\]/', $filename) ||
+            !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
+            Response::error('Nama file tidak valid.', 400);
+        }
+        
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+            Response::error('Ekstensi file tidak diizinkan.', 400);
+        }
+        
+        $pdo = Database::get();
+        
+        $stmt = $pdo->prepare("SELECT house_photos FROM households WHERE id = ? AND is_active = 1");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$row) {
+            Response::notFound('Data rumah tangga tidak ditemukan.');
+        }
+        
+        $photos = json_decode($row['house_photos'] ?? '[]', true) ?: [];
+        
+        if (!in_array($filename, $photos, true)) {
+            Response::error('File tidak ditemukan dalam data ini.', 404);
+        }
+        
+        $photos = array_values(array_filter($photos, fn($p) => $p !== $filename));
+        
+        $upd = $pdo->prepare("UPDATE households SET house_photos = ? WHERE id = ?");
+        $upd->execute([json_encode($photos, JSON_UNESCAPED_UNICODE), $id]);
+        
+        $dir = __DIR__ . '/../../uploads/houses/';
+        $fullPath = realpath($dir . $filename);
+        $realDir = realpath($dir);
+        if ($fullPath && $realDir && str_starts_with($fullPath, $realDir)) {
+            @unlink($fullPath);
+        }
+        
+        AuditLog::record('Hapus Foto Rumah', 'households', $id, null, ['filename' => $filename]);
+        Response::success(['remaining' => $photos], 'Foto berhasil dihapus.');
+        break;
+    }
+    
     default:
         Response::methodNotAllowed();
 }
