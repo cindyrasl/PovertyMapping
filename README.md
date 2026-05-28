@@ -8,165 +8,184 @@
 
 ---
 
-## 1. Project Overview
+## 1. Gambaran Proyek
 
-**WebGIS Poverty Mapping** is a web-based Geographic Information System (GIS) designed for mapping, analyzing, and managing household poverty data at the village/sub-district level. It enables field officers and administrators to efficiently collect, visualize, and act on social welfare data using an interactive digital map.
+**WebGIS Poverty Mapping** adalah Sistem Informasi Geografis (GIS) berbasis web yang dirancang untuk memetakan, menganalisis, dan mengelola data kemiskinan rumah tangga pada tingkat desa/kelurahan. Sistem ini memungkinkan petugas lapangan dan administrator untuk mengumpulkan, memvisualisasikan, serta mengambil tindakan terhadap data kesejahteraan sosial secara efisien melalui peta digital interaktif.
 
-### Problems It Solves
+### Permasalahan yang Diselesaikan
 
-| Problem | Solution |
+| Masalah | Solusi |
 |---|---|
-| Poverty data scattered across spreadsheets | Centralized household database with GIS coordinates |
-| No visual overview of poverty distribution | Interactive Leaflet map with color-coded markers |
-| Aid distribution not tracked systematically | Aid history module per household with timestamps |
-| Public cannot report poverty cases easily | Public reporting page (`lapor.html`) with map-based input |
-| No way to measure religious center coverage | Configurable radius circles per religious center |
-| Field officers and admins share the same access | Role-based authentication (Admin vs. Petugas Lapangan) |
+| Data kemiskinan tersebar di berbagai spreadsheet | Basis data rumah tangga terpusat dengan koordinat GIS |
+| Tidak ada gambaran visual distribusi kemiskinan | Peta interaktif Leaflet dengan marker berwarna |
+| Penyaluran bantuan tidak tercatat secara sistematis | Modul riwayat bantuan per rumah tangga dengan stempel waktu |
+| Masyarakat sulit melaporkan kasus kemiskinan | Halaman pelaporan publik (`lapor.html`) berbasis peta |
+| Tidak ada cara mengukur jangkauan tempat ibadah | Radius cakupan yang dapat dikonfigurasi |
+| Petugas dan admin memiliki akses yang sama | Autentikasi berbasis peran (Admin vs Petugas Lapangan) |
+| Tidak ada bukti visual pada laporan | Fitur unggah foto untuk laporan dan data rumah tangga |
 
 ---
 
-## 2. Main Features
+## 2. Fitur Utama
 
-### 🗺️ GIS Mapping
-- **Household markers** — Color-coded by poverty severity on an OpenStreetMap base layer
-- **Religious center markers** — Custom icons per worship type (Masjid, Gereja, Klenteng, Pura, Vihara)
-- **Radius visualization** — Configurable coverage circle per religious center, dynamically showing which households fall within reach
-- **Draggable markers** — Reposition household or center markers by dragging; coordinates update automatically
-- **Dynamic popups** — Detailed information cards rendered from live API data on marker click
-- **Layer controls** — Toggle household, center, and radius layers independently
+### 🗺️ Pemetaan GIS
+- **Marker rumah tangga** — Dengan kode warna berdasarkan tingkat keparahan kemiskinan pada peta dasar OpenStreetMap
+- **Marker tempat ibadah** — Ikon khusus per jenis ibadah (Masjid, Gereja, Klenteng, Pura, Vihara)
+- **Visualisasi radius** — Lingkaran cakupan yang dapat dikonfigurasi per tempat ibadah, secara dinamis menunjukkan rumah tangga mana yang berada dalam jangkauan
+- **Marker yang dapat diseret** — Memposisikan ulang marker rumah atau pusat ibadah dengan menyeret; koordinat diperbarui secara otomatis
+- **Popup dinamis** — Kartu informasi detail yang dirender dari data langsung API saat marker diklik, termasuk thumbnail foto
+- **Kontrol layer** — Mengaktifkan/menonaktifkan layer rumah, pusat ibadah, dan radius secara independen
 
-### 👥 Household & Family Management
-- Full CRUD for household data including head-of-family details (NIK, gender, date of birth, education, employment, income)
-- Dynamic **family member management** — add, edit, or remove household members with individual profiles
-- Administrative location fields: RT, RW, Kelurahan, Kecamatan, full address
+### 👥 Manajemen Rumah Tangga & Keluarga
+- CRUD lengkap untuk data rumah tangga termasuk detail kepala keluarga (NIK, jenis kelamin, tanggal lahir, pendidikan, pekerjaan, penghasilan)
+- Manajemen **anggota keluarga** yang dinamis — tambah, edit, atau hapus anggota keluarga dengan profil individu
+- Kolom lokasi administratif: RT, RW, Kelurahan, Kecamatan, alamat lengkap
+- **Unggah foto per rumah tangga** — lampirkan hingga 5 foto rumah (JPG/JPEG/PNG, maks 5 MB per foto); foto muncul sebagai thumbnail di popup peta dan modal edit
 
-### 📊 Automatic Poverty Classification
-- Automated scoring via `PovertyCalculator.php` based on 5 indicators:
-  - Per-capita monthly income
-  - Number of dependents
-  - House habitability condition
-  - Head-of-family education level
-  - Land ownership status
-- Produces one of four categories: **Terdata**, **Rentan Miskin**, **Miskin**, **Sangat Miskin**
+### 📊 Klasifikasi Kemiskinan Otomatis
+- Penilaian otomatis melalui `PovertyCalculator.php` berdasarkan 5 indikator:
+  - Pendapatan per kapita bulanan
+  - Jumlah tanggungan
+  - Kondisi kelayakan hunian rumah
+  - Tingkat pendidikan kepala keluarga
+  - Status kepemilikan lahan
+- Menghasilkan salah satu dari empat kategori: **Terdata**, **Rentan Miskin**, **Miskin**, **Sangat Miskin**
 
-### 🎁 Aid History Tracking
-- Record aid deliveries per household (type, date, amount, notes)
-- Aid types: Sembako, Pendanaan, Pelatihan, and combinations
-- Aid status (`not_yet` / `received`) automatically reflected on the map marker
+### 🎁 Pelacakan Riwayat Bantuan
+- Mencatat pengiriman bantuan per rumah tangga (jenis, tanggal, jumlah, catatan)
+- Jenis bantuan: Sembako, Pendanaan, Pelatihan, dan kombinasi
+- Status bantuan (`not_yet` / `received`) secara otomatis tercermin pada marker peta
 
-### 📢 Public Reporting System
-- Anonymous public submission via `lapor.html` — no login required
-- Map-based coordinate picker with reverse geocoding (auto-fills address)
-- Rate limiting: max **5 reports per IP per 24 hours**
-- Admin review workflow: **Pending → Approved/Rejected**
-- Approved reports automatically create a new household record and map marker
+### 📢 Sistem Pelaporan Publik
+- Pengiriman publik anonim melalui `lapor.html` — tidak perlu login
+- Pemilih koordinat berbasis peta dengan reverse geocoding (mengisi alamat secara otomatis)
+- **Unggah foto bukti** — pelapor dapat melampirkan hingga 5 foto (JPG/JPEG/PNG, maks 5 MB per foto) sebagai bukti visual
+- Pembatasan laju: maks **5 laporan per IP per 24 jam**
+- Alur kerja verifikasi admin: **Menunggu → Disetujui/Ditolak**
+- Laporan yang disetujui secara otomatis membuat catatan rumah tangga baru dan marker peta
 
-### 🔐 Authentication & Role-Based Access
-- Secure login system (`login.html`) with session-based authentication
-- Two authenticated roles: **Admin** and **Petugas Lapangan** (Field Officer)
-- Public access to `lapor.html` without login
+### 📷 Fitur Unggah Foto
+- Modul unggah bersama (`assets/js/photo-upload.js`) yang digunakan di seluruh form rumah tangga dan halaman laporan publik
+- **Aturan validasi:** format file harus JPG, JPEG, atau PNG; maksimal 5 MB per file; maksimal 5 foto per pengiriman
+- Pratinjau sisi klien dengan zona seret dan lepas sebelum unggah
+- Validasi sisi server melalui `api/public/upload.php`: pengecekan tipe MIME menggunakan `finfo`, daftar putih ekstensi, pengecekan integritas `getimagesize()`, dan pembuatan nama file acak untuk mencegah tabrakan
+- Direktori unggah diamankan dengan `.htaccess` untuk memblokir eksekusi PHP di dalam `uploads/`
+- Foto yang disimpan ditampilkan sebagai thumbnail 60×72 px dengan penampil lightbox saat diklik
 
-### 📈 Analytics Dashboard
-- KPI cards: total centers, households, population, aid recipients
-- Chart.js charts: poverty distribution, aid distribution, data entry trend (12 months), age distribution, per-center statistics
-- Dashboard visible to Admin only
+### 🔐 Autentikasi & Akses Berbasis Peran
+- Sistem login aman (`login.html`) dengan autentikasi berbasis sesi
+- Dua peran terautentikasi: **Admin** dan **Petugas Lapangan**
+- Akses publik ke `lapor.html` tanpa login
 
-### 📱 Responsive Mobile UI
-- Fully responsive sidebar, modals, and popups
-- CSS viewport-height fix for iOS Safari (`--vh` custom property)
-- Touch-optimized controls and minimum 44px tap targets
-- Safe area inset support for notched phones
+### 📈 Dasbor Analitik
+- Kartu KPI: total pusat ibadah, rumah tangga, populasi, penerima bantuan
+- Grafik Chart.js: distribusi kemiskinan, distribusi bantuan, tren entri data (12 bulan), distribusi usia, statistik per pusat
+- Dasbor hanya terlihat oleh Admin
+
+### 📱 Antarmuka Pengguna Responsif Mobile
+- Sidebar, modal, dan popup yang sepenuhnya responsif
+- Perbaikan tinggi viewport CSS untuk iOS Safari (properti kustom `--vh`)
+- Kontrol yang dioptimalkan untuk sentuhan dan target sentuh minimal 44px
+- Dukungan inset area aman untuk ponsel dengan takik
 
 ### 🔍 Reverse Geocoding
-- Click-to-place pin on map with automatic address fill-in
-- Powered by OpenStreetMap Nominatim API
-- Available in both admin household forms and the public report form
+- Pin klik-tempat pada peta dengan pengisian alamat otomatis
+- Didukung oleh API Nominatim OpenStreetMap
+- Tersedia di kedua form rumah tangga admin dan form laporan publik
 
 ---
 
-## 3. Technology Stack
+## 3. Tumpukan Teknologi
 
-| Layer | Technology | Purpose |
+| Lapisan | Teknologi | Tujuan |
 |---|---|---|
-| Frontend Structure | HTML5 | Page layout and semantic markup |
-| Frontend Styling | Vanilla CSS | Custom design system, responsive layout |
-| Frontend Logic | JavaScript (ES2020+) | Map interaction, API calls, form logic |
-| Mapping | Leaflet.js 1.9 | Interactive GIS map rendering |
-| Charts | Chart.js 4.4 | Analytics dashboard visualization |
-| Icons | Font Awesome 6.4 | UI and map icons |
-| Fonts | Google Fonts (DM Sans) | Typography |
-| Geocoding | OpenStreetMap Nominatim | Reverse geocoding (address from coords) |
-| Backend | PHP 8.1+ (Native) | REST API, session management, business logic |
-| Database ORM | PDO (PHP) | Secure database access with prepared statements |
-| Database | MySQL 8.0+ / MariaDB 10.6+ | Data persistence |
-| Web Server | Apache (XAMPP/shared hosting) | Request routing |
+| Struktur Frontend | HTML5 | Tata letak halaman dan markup semantik |
+| Styling Frontend | CSS Vanila | Sistem desain kustom, tata letak responsif |
+| Logika Frontend | JavaScript (ES2020+) | Interaksi peta, panggilan API, logika formulir |
+| Pemetaan | Leaflet.js 1.9 | Rendering peta GIS interaktif |
+| Grafik | Chart.js 4.4 | Visualisasi dasbor analitik |
+| Ikon | Font Awesome 6.4 | Ikon UI dan peta |
+| Font | Google Fonts (DM Sans) | Tipografi |
+| Geocoding | OpenStreetMap Nominatim | Reverse geocoding (alamat dari koordinat) |
+| Backend | PHP 8.1+ (Native) | REST API, manajemen sesi, logika bisnis |
+| ORM Database | PDO (PHP) | Akses database aman dengan prepared statements |
+| Database | MySQL 8.0+ / MariaDB 10.6+ | Penyimpanan data persisten |
+| Server Web | Apache (XAMPP/shared hosting) | Perutean permintaan |
 
 ---
 
-## 4. Folder Structure
+## 4. Struktur Folder
 
 ```
 PovertyMapping/
 ├── api/
 │   ├── auth/
-│   │   └── check.php           Session check, login, logout
+│   │   └── check.php           Pengecekan sesi, login, logout
 │   ├── houses/
-│   │   └── index.php           Household CRUD + family members + aid
+│   │   └── index.php           CRUD rumah tangga + anggota keluarga + bantuan
 │   ├── centers/
-│   │   └── index.php           Religious center CRUD + coverage
+│   │   └── index.php           CRUD tempat ibadah + cakupan
 │   ├── aid/
-│   │   └── index.php           Aid history management
+│   │   └── index.php           Manajemen riwayat bantuan
 │   ├── public/
-│   │   └── report.php          Public report submission & admin review
+│   │   ├── report.php          Pengiriman laporan publik & verifikasi admin
+│   │   └── upload.php          Penanganan unggah foto (laporan & rumah)
+│   ├── reports/
+│   │   └── index.php           Manajemen laporan internal
 │   ├── stats/
-│   │   └── index.php           Dashboard KPIs and chart data
+│   │   └── index.php           KPI dasbor dan data grafik
 │   ├── users/
-│   │   └── index.php           User management (Admin only)
+│   │   └── index.php           Manajemen pengguna (hanya Admin)
 │   └── logs/
-│       └── index.php           Audit log viewer
+│       └── index.php           Penampil log audit
 ├── assets/
 │   ├── css/
-│   │   └── style.css           Main stylesheet
+│   │   └── style.css           Lembar gaya utama
 │   └── js/
-│       ├── config.js           Global constants and app state
-│       ├── api.js              Centralized HTTP client (fetch wrappers)
-│       ├── auth.js             Session check and role-based UI init
-│       ├── map.js              Leaflet map initialization, placement mode
-│       ├── markers.js          Marker rendering, popups, radius logic
-│       ├── forms.js            Household/center form handlers (CRUD modals)
-│       ├── dashboard.js        Chart.js analytics rendering
-│       ├── public-reports.js   Admin panel — public report verification
-│       └── app.js              Main orchestrator (initialization flow)
+│       ├── config.js           Konstanta global dan status aplikasi
+│       ├── api.js              Klien HTTP terpusat (pembungkus fetch)
+│       ├── auth.js             Pengecekan sesi dan inisialisasi UI berbasis peran
+│       ├── map.js              Inisialisasi peta Leaflet, mode penempatan
+│       ├── markers.js          Rendering marker, popup, logika radius
+│       ├── forms.js            Penangan formulir rumah/pusat (modal CRUD)
+│       ├── dashboard.js        Rendering analitik Chart.js
+│       ├── public-reports.js   Panel admin — verifikasi laporan publik
+│       ├── photo-upload.js     Widget unggah foto bersama (pratinjau, validasi, unggah)
+│       └── app.js              Pengatur utama (alur inisialisasi)
 ├── config/
-│   ├── config.php              App constants, DB credentials, thresholds
-│   ├── database.php            PDO singleton connection
-│   └── bootstrap.php           API bootstrap: headers, session, auth helpers
+│   ├── config.php              Konstanta aplikasi, kredensial DB, ambang batas
+│   ├── database.php            Koneksi singleton PDO
+│   └── bootstrap.php           Bootstrap API: header, sesi, pembantu autentikasi
 ├── middleware/
-│   ├── Response.php            Standardized JSON response helper
-│   └── Validator.php           Input validation and sanitization
+│   ├── Response.php            Pembantu respons JSON standar
+│   └── Validator.php           Validasi dan pembersihan input
 ├── models/
-│   ├── PovertyCalculator.php   Automated poverty scoring engine
-│   └── AuditLog.php            Writes structured audit entries
-├── index.html                  Main authenticated map & admin dashboard
-├── login.html                  Login page
-└── lapor.html                  Public report submission page
+│   ├── PovertyCalculator.php   Mesin penilaian kemiskinan otomatis
+│   └── AuditLog.php            Menulis entri audit terstruktur
+├── uploads/
+│   ├── .htaccess               Memblokir eksekusi PHP di dalam uploads/
+│   ├── houses/                 Penyimpanan foto rumah tangga
+│   └── reports/                Penyimpanan foto bukti laporan publik
+├── index.html                  Peta utama terautentikasi & dasbor admin
+├── login.html                  Halaman login
+└── lapor.html                  Halaman pengiriman laporan publik
 ```
 
 ---
 
-## 5. Database Structure
+## 5. Struktur Database
 
-### Entity Relationship Summary
+### Ringkasan Relasi Entitas
 
 ```
-users                    (admin / petugas accounts)
+users                    (akun admin / petugas)
 religious_centers        (1) ──< households (N)   [managing_center_id]
 households               (1) ──< household_members (N)
 households               (1) ──< aid_history (N)
 households               (1) ──< public_reports (N) [converted_household_id]
 ```
 
-### Table Definitions
+### Definisi Tabel
 
 **`users`**
 ```sql
@@ -178,24 +197,26 @@ is_active, last_login_at, created_at
 **`households`**
 ```sql
 id,
--- Location
+-- Lokasi
 rt, rw, kelurahan, kecamatan, full_address,
 latitude, longitude,
--- Head of family
+-- Kepala keluarga
 head_name, head_nik,
 head_gender ENUM('male','female'),
 head_date_of_birth, head_education,
 head_employment_status, head_job_name, head_institution_name,
 head_monthly_income,
--- Housing
+-- Perumahan
 house_condition ENUM('layak','tidak_layak'),
 land_ownership ENUM('milik','sewa','numpang','lainnya'),
--- Poverty
-poverty_score INT,           -- 0–100 normalized score
+-- Kemiskinan
+poverty_score INT,           -- Skor ternormalisasi 0–100
 poverty_status ENUM('terdata','rentan_miskin','miskin','sangat_miskin'),
--- Aid
+-- Bantuan
 aid_status ENUM('not_yet','received'),
--- Relations
+-- Foto
+house_photos TEXT NULL,      -- Array JSON nama file foto
+-- Relasi
 managing_center_id FK → religious_centers.id,
 -- Meta
 notes, is_active, created_at, updated_at
@@ -214,7 +235,7 @@ created_at
 id, name,
 worship_type ENUM('masjid','gereja','klenteng','pura','vihara'),
 address, latitude, longitude,
-radius INT (meters),
+radius INT (meter),
 contact_person, contact_phone, notes,
 is_active, created_at
 ```
@@ -234,54 +255,49 @@ aid_date, amount, notes, created_at
 id, reporter_name, reporter_phone,
 head_name, address, latitude, longitude, description,
 status ENUM('pending','approved','rejected'),
+proof_photos TEXT NULL,      -- Array JSON nama file foto
+urgent_need,
 admin_notes, converted_household_id FK → households.id,
 ip_address, reviewed_at, created_at
 ```
 
-**`audit_logs`**
-```sql
-id, action, table_name, record_id,
-old_values JSON, new_values JSON,
-user_id, ip_address, user_agent, created_at
-```
+---
+
+## 6. Panduan Instalasi
+
+### Prasyarat
+
+- PHP **8.1+** dengan ekstensi: `pdo_mysql`, `json`, `mbstring`, `fileinfo`, `gd`
+- MySQL **8.0+** atau MariaDB **10.6+**
+- Server web Apache (XAMPP, Laragon, atau hosting bersama)
+- Akses internet untuk aset CDN (Leaflet, Chart.js, Font Awesome, Google Fonts)
 
 ---
 
-## 6. Installation Guide
-
-### Prerequisites
-
-- PHP **8.1+** with extensions: `pdo_mysql`, `json`, `mbstring`
-- MySQL **8.0+** or MariaDB **10.6+**
-- Apache web server (XAMPP, Laragon, or shared hosting)
-- Internet access for CDN assets (Leaflet, Chart.js, Font Awesome, Google Fonts)
-
----
-
-### Step 1 — Copy Files
+### Langkah 1 — Salin File
 
 **XAMPP (Windows):**
 ```
-Copy the PovertyMapping/ folder to:
+Salin folder PovertyMapping/ ke:
 C:\xampp\htdocs\PovertyMapping\
 ```
 
-**Linux server:**
+**Server Linux:**
 ```bash
 cp -r PovertyMapping/ /var/www/html/
 ```
 
 ---
 
-### Step 2 — Create Database
+### Langkah 2 — Buat Database
 
-Open **phpMyAdmin** → click **New** → enter database name:
+Buka **phpMyAdmin** → klik **Baru** → masukkan nama database:
 ```
 webgis5
 ```
-Set collation: `utf8mb4_unicode_ci` → click **Create**.
+Atur kolasi: `utf8mb4_unicode_ci` → klik **Buat**.
 
-Or via MySQL CLI:
+Atau melalui CLI MySQL:
 ```sql
 CREATE DATABASE webgis5
   CHARACTER SET utf8mb4
@@ -290,31 +306,31 @@ CREATE DATABASE webgis5
 
 ---
 
-### Step 3 — Import Schema
+### Langkah 3 — Impor Skema
 
-In phpMyAdmin → select `webgis5` → click **Import** → choose the SQL file provided with this project → click **Go**.
+Di phpMyAdmin → pilih `webgis5` → klik **Impor** → pilih file SQL yang disertakan dengan proyek ini → klik **Go**.
 
-Or via CLI:
+Atau melalui CLI:
 ```bash
-mysql -u root -p webgis5 < database.sql
+mysql -u root -p webgis5 < webgis5.sql
 ```
 
-The SQL file creates all tables and inserts the initial admin user account.
+File SQL membuat semua tabel, termasuk kolom `house_photos` dan `proof_photos`, dan menyisipkan akun pengguna awal yang sudah di-seed.
 
 ---
 
-### Step 4 — Configure Database Connection
+### Langkah 4 — Konfigurasi Koneksi Database
 
 Edit `config/config.php`:
 ```php
 define('DB_HOST', 'localhost');
 define('DB_PORT', '3306');
-define('DB_NAME', 'webgis5');   // your database name
-define('DB_USER', 'root');       // MySQL username
-define('DB_PASS', '');           // MySQL password (empty for XAMPP default)
+define('DB_NAME', 'webgis5');   // nama database Anda
+define('DB_USER', 'root');       // nama pengguna MySQL
+define('DB_PASS', '');           // kata sandi MySQL (kosong untuk default XAMPP)
 ```
 
-For **production**, also set:
+Untuk **produksi**, atur juga:
 ```php
 define('APP_ENV',   'production');
 define('APP_DEBUG', false);
@@ -322,298 +338,361 @@ define('APP_DEBUG', false);
 
 ---
 
-### Step 5 — Open in Browser
+### Langkah 5 — Atur Izin Direktori Unggah
+
+Pastikan direktori unggah dapat ditulis oleh server web:
+
+**Linux/Mac:**
+```bash
+chmod 755 uploads/ uploads/houses/ uploads/reports/
+```
+
+**Windows (XAMPP):** Izin tulis biasanya diberikan secara default. Tidak perlu langkah tambahan.
+
+---
+
+### Langkah 6 — Buka di Browser
 
 ```
-http://localhost/PovertyMapping/login.html    → Login page
-http://localhost/PovertyMapping/              → Main dashboard (after login)
-http://localhost/PovertyMapping/lapor.html    → Public report form
+http://localhost/PovertyMapping/login.html    → Halaman login
+http://localhost/PovertyMapping/              → Dasbor utama (setelah login)
+http://localhost/PovertyMapping/lapor.html    → Form laporan publik
 ```
 
 ---
 
-### Step 6 — Default Login Credentials
+### Langkah 7 — Kredensial Login Default
 
-After importing the database, log in with the seeded admin account:
+Setelah mengimpor database, dua akun yang sudah di-seed tersedia:
 
-| Field | Value |
-|---|---|
-| Email | `admin@webgis.local` |
-| Password | `Admin@12345` |
+| Peran | Email | Kata Sandi |
+|---|---|---|
+| Administrator | `admin@webgis.local` | `Admin@12345` |
+| Petugas Lapangan | `petugas@webgis.local` | `Petugas@12345` |
 
-> **Important:** Change the default password immediately after first login via the User Management panel.
-
----
-
-### Shared Hosting Deployment Notes
-
-1. Upload all files via FTP/cPanel File Manager (exclude `.git/` folder)
-2. Create a MySQL database and user in cPanel
-3. Update `config/config.php` with your hosting DB credentials
-4. Ensure PHP version ≥ 8.1 in cPanel → PHP Selector
-5. Verify `pdo_mysql` is enabled in PHP extensions
-6. Set `APP_DEBUG = false` and `APP_ENV = 'production'`
+> **Penting:** Segera ganti kata sandi default setelah login pertama melalui panel Manajemen Pengguna.
 
 ---
 
-## 7. Authentication & Roles
+### Catatan Deployment Hosting Bersama
 
-The system uses **PHP session-based authentication**. All protected pages redirect to `login.html` if no valid session exists.
+1. Unggah semua file melalui FTP/cPanel File Manager (kecuali folder `.git/`)
+2. Buat database MySQL dan pengguna di cPanel
+3. Perbarui `config/config.php` dengan kredensial DB hosting Anda
+4. Pastikan versi PHP ≥ 8.1 di cPanel → PHP Selector
+5. Pastikan `pdo_mysql` dan `fileinfo` diaktifkan di ekstensi PHP
+6. Atur `APP_DEBUG = false` dan `APP_ENV = 'production'`
+7. Pastikan direktori `uploads/houses/` dan `uploads/reports/` dapat ditulis
 
-### Role Comparison
+---
 
-| Permission | Admin | Petugas Lapangan | Public (No Login) |
+## 7. Autentikasi & Peran
+
+Sistem menggunakan **autentikasi berbasis sesi PHP**. Semua halaman yang dilindungi akan dialihkan ke `login.html` jika tidak ada sesi yang valid.
+
+### Perbandingan Peran
+
+| Izin | Admin | Petugas Lapangan | Publik (Tidak Login) |
 |---|:---:|:---:|:---:|
-| View map & markers | ✅ | ✅ | ❌ |
-| Add household | ✅ | ✅ | ❌ |
-| Edit household | ✅ | ✅ | ❌ |
-| Delete household | ✅ | ❌ | ❌ |
-| Add/edit religious center | ✅ | ✅ | ❌ |
-| Delete religious center | ✅ | ❌ | ❌ |
-| Record aid history | ✅ | ✅ | ❌ |
-| View analytics dashboard | ✅ | ❌ | ❌ |
-| Review public reports | ✅ | ❌ | ❌ |
-| Manage users | ✅ | ❌ | ❌ |
-| View audit logs | ✅ | ❌ | ❌ |
-| Submit public report | ❌ | ❌ | ✅ |
+| Lihat peta & marker | ✅ | ✅ | ❌ |
+| Tambah rumah tangga | ✅ | ✅ | ❌ |
+| Edit rumah tangga | ✅ | ✅ | ❌ |
+| Unggah foto rumah tangga | ✅ | ✅ | ❌ |
+| Hapus rumah tangga | ✅ | ❌ | ❌ |
+| Tambah/edit tempat ibadah | ✅ | ✅ | ❌ |
+| Hapus tempat ibadah | ✅ | ❌ | ❌ |
+| Catat riwayat bantuan | ✅ | ✅ | ❌ |
+| Lihat dasbor analitik | ✅ | ❌ | ❌ |
+| Tinjau laporan publik | ✅ | ✅ | ❌ |
+| Kelola pengguna | ✅ | ❌ | ❌ |
+| Lihat log audit | ✅ | ❌ | ❌ |
+| Kirim laporan publik (dengan foto) | ❌ | ❌ | ✅ |
 
-### Authentication Flow
+### Alur Autentikasi
 
 ```
 login.html → POST api/auth/check.php?action=login
-           → session_regenerate_id() prevents fixation
-           → $_SESSION stores user_id, name, email, role
-           → index.html loads, auth.js calls GET api/auth/check.php
-           → Role-based UI elements shown/hidden
+           → session_regenerate_id() mencegah fiksasi
+           → $_SESSION menyimpan user_id, name, email, role
+           → index.html dimuat, auth.js memanggil GET api/auth/check.php
+           → Elemen UI berbasis peran ditampilkan/disembunyikan
            → Logout: POST api/auth/check.php?action=logout
-             → session_destroy() → redirect to login.html
+             → session_destroy() → dialihkan ke login.html
 ```
 
 ---
 
-## 8. GIS Workflow
+## 8. Alur Kerja GIS
 
-### Household Marker Creation
+### Pembuatan Marker Rumah Tangga
 
 ```
-1. Officer clicks "Tambah Rumah" button on the map
-2. Map enters placement mode — cursor changes to crosshair
-3. Officer clicks the map at the household location
-4. Nominatim reverse geocoding fills the address field automatically
-5. Officer completes the form (family data, income, housing condition)
-6. PovertyCalculator scores the household on save
-7. Marker appears immediately on the map with the correct color
+1. Petugas mengklik tombol "Tambah Rumah" pada peta
+2. Peta memasuki mode penempatan — kursor berubah menjadi tanda silang
+3. Petugas mengklik peta di lokasi rumah tangga
+4. Reverse geocoding Nominatim mengisi kolom alamat secara otomatis
+5. Petugas melengkapi formulir (data keluarga, penghasilan, kondisi rumah)
+6. Petugas opsional melampirkan foto rumah (hingga 5 foto, JPG/JPEG/PNG, maks 5 MB masing-masing)
+7. PovertyCalculator memberi skor pada rumah tangga saat disimpan
+8. Setelah disimpan, foto diunggah melalui api/public/upload.php?target=house&id={id}
+9. Marker segera muncul pada peta dengan warna yang benar
+10. Popup menampilkan thumbnail foto ketika kolom house_photos terisi
 ```
 
-### Poverty Color System
+### Alur Kerja Unggah Foto
 
-| Color | Category | Score Range |
+```
+Pengguna memilih foto melalui zona unggah (atau seret dan lepas)
+          ↓
+PhotoUpload.validate() — pengecekan sisi klien: format, ukuran, jumlah
+          ↓
+Thumbnail pratinjau ditampilkan
+          ↓
+Catatan disimpan (rumah tangga atau laporan) → server mengembalikan ID
+          ↓
+PhotoUpload.upload(target, id, fileList) — POST ke api/public/upload.php
+          ↓
+Server memvalidasi: tipe MIME (finfo), daftar putih ekstensi, getimagesize()
+          ↓
+File disimpan ke uploads/houses/ atau uploads/reports/
+Nama file: {target}_{id}_{random12hex}.{ext}
+          ↓
+Kolom house_photos / proof_photos diperbarui (array JSON)
+          ↓
+Popup / modal edit / modal setujui menampilkan foto yang tersimpan
+```
+
+### Sistem Warna Kemiskinan
+
+| Warna | Kategori | Rentang Skor |
 |---|---|---|
-| 🟢 Green `#0b9e73` | Terdata | 0 points |
-| 🟡 Amber `#f59e0b` | Rentan Miskin | 1–3 points |
-| 🟠 Orange `#f76707` | Miskin | 4–6 points |
-| 🔴 Red `#d63230` | Sangat Miskin | ≥ 7 points |
+| 🟢 Hijau `#0b9e73` | Terdata | 0 poin |
+| 🟡 Kuning `#f59e0b` | Rentan Miskin | 1–3 poin |
+| 🟠 Oranye `#f76707` | Miskin | 4–6 poin |
+| 🔴 Merah `#d63230` | Sangat Miskin | ≥ 7 poin |
 
-### Radius Coverage Analysis
-
-```
-Religious center has a configurable radius (meters)
-→ A circle is drawn on the map
-→ Haversine formula runs client-side per household
-→ Households within radius are highlighted and counted
-→ Admin can adjust radius via a slider in the center popup
-→ Coverage count updates live without page reload
-```
-
-### Public Report Verification Workflow
+### Analisis Cakupan Radius
 
 ```
-Public user → lapor.html → POST api/public/report.php
+Tempat ibadah memiliki radius yang dapat dikonfigurasi (meter)
+→ Lingkaran digambar pada peta
+→ Rumus Haversine berjalan sisi klien per rumah tangga
+→ Rumah tangga dalam radius disorot dan dihitung
+→ Admin dapat menyesuaikan radius melalui slider di popup pusat ibadah
+→ Jumlah cakupan diperbarui langsung tanpa memuat ulang halaman
+```
+
+### Alur Kerja Verifikasi Laporan Publik
+
+```
+Pengguna publik → lapor.html → POST api/public/report.php
+                              ↓ (opsional)
+                        Unggah foto bukti → api/public/upload.php?target=report&id=N
                                     ↓
                           public_reports (status = pending)
                                     ↓
-                    Admin → index.html → Admin Panel → Laporan Publik
+                    Admin → index.html → Panel Admin → Laporan Publik
+                    (Foto terlihat di modal setujui)
                                     ↓
-                    ┌─────── Approve ──────── Reject ───────┐
+                    ┌─────── Setujui ──────── Tolak ───────┐
                     ↓                                        ↓
           INSERT INTO households                   status = rejected
-          poverty auto-calculated                  admin_notes saved
+          poverty dihitung otomatis                  catatan admin disimpan
           status = approved
-          converted_household_id = new ID
+          converted_household_id = ID baru
                     ↓
-          New marker appears on the map
+          Marker baru muncul pada peta
 ```
 
-### Aid Tracking Workflow
+### Alur Kerja Pelacakan Bantuan
 
 ```
-1. Officer opens household popup → "Tambah Bantuan"
-2. Selects: aid type, date, amount, delivering center
-3. aid_history record created
-4. aid_status on household updated to 'received'
-5. Marker icon refreshes to reflect new aid status
-6. Dashboard stats update on next refresh
+1. Petugas membuka popup rumah tangga → "Tambah Bantuan"
+2. Memilih: jenis bantuan, tanggal, jumlah, pusat pemberi
+3. Catatan aid_history dibuat
+4. aid_status pada rumah tangga diperbarui menjadi 'received'
+5. Ikon marker disegarkan untuk mencerminkan status bantuan baru
+6. Statistik dasbor diperbarui pada penyegaran berikutnya
 ```
 
 ---
 
-## 9. API Overview
+## 9. Ikhtisar API
 
-All API endpoints return consistent JSON:
+Semua endpoint API mengembalikan JSON yang konsisten:
 ```json
 { "success": true, "message": "...", "data": { ... } }
 ```
 
-All authenticated endpoints return `401` without a valid session, and `403` for insufficient role.
+Semua endpoint terautentikasi mengembalikan `401` tanpa sesi yang valid, dan `403` untuk peran yang tidak mencukupi.
 
 ### `api/auth/check.php`
 
-| Method | Query | Description |
+| Metode | Query | Deskripsi |
 |---|---|---|
-| GET | — | Check current session state |
-| POST | `?action=login` | Authenticate user (email + password) |
-| POST | `?action=logout` | Destroy session |
+| GET | — | Memeriksa status sesi saat ini |
+| POST | `?action=login` | Mengautentikasi pengguna (email + kata sandi) |
+| POST | `?action=logout` | Menghancurkan sesi |
 
 ### `api/houses/index.php`
 
-| Method | Query | Auth | Description |
+| Metode | Query | Auth | Deskripsi |
 |---|---|---|---|
-| GET | `?action=list` | Any | List households (with filters) |
-| GET | `?action=show&id=N` | Any | Household detail + members + aid |
-| POST | `?action=create` | Any | Create new household |
-| POST | `?action=update&id=N` | Any | Update household data |
-| POST | `?action=patch&id=N` | Any | Update coordinates only (drag) |
-| POST | `?action=delete&id=N` | Admin | Soft-delete household |
+| GET | `?action=list` | Siapa saja | Daftar rumah tangga (dengan filter) |
+| GET | `?action=show&id=N` | Siapa saja | Detail rumah tangga + anggota + bantuan |
+| POST | `?action=create` | Siapa saja | Membuat rumah tangga baru |
+| POST | `?action=update&id=N` | Siapa saja | Memperbarui data rumah tangga |
+| POST | `?action=patch&id=N` | Siapa saja | Memperbarui koordinat saja (seret) |
+| POST | `?action=delete&id=N` | Admin | Menghapus lunak rumah tangga |
+| POST | `?action=delete_photo&id=N` | Siapa saja | Menghapus foto rumah tangga individu |
 
-**List filters:** `poverty_status`, `aid_status`, `house_condition`, `center_id`, `q` (search name/address/NIK)
+**Filter daftar:** `poverty_status`, `aid_status`, `house_condition`, `center_id`, `q` (cari nama/alamat/NIK)
+
+### `api/public/upload.php`
+
+| Metode | Query | Auth | Deskripsi |
+|---|---|---|---|
+| POST | `?target=house&id=N` | Diperlukan | Mengunggah foto untuk rumah tangga |
+| POST | `?target=report&id=N` | Publik | Mengunggah foto bukti untuk laporan publik |
+
+**Validasi:** maks 5 file, maks 5 MB per file, ekstensi yang diizinkan: `jpg`, `jpeg`, `png`. Tipe MIME diverifikasi sisi server melalui `finfo`.
 
 ### `api/centers/index.php`
 
-| Method | Query | Auth | Description |
+| Metode | Query | Auth | Deskripsi |
 |---|---|---|---|
-| GET | `?action=list` | Any | List all religious centers |
-| GET | `?action=show&id=N` | Any | Center detail |
-| GET | `?action=coverage&id=N` | Any | Households within center radius |
-| POST | `?action=create` | Any | Create new center |
-| POST | `?action=update&id=N` | Any | Update center data |
-| POST | `?action=patch&id=N` | Any | Update radius/coords only |
-| POST | `?action=delete&id=N` | Admin | Soft-delete center |
+| GET | `?action=list` | Siapa saja | Daftar semua tempat ibadah |
+| GET | `?action=show&id=N` | Siapa saja | Detail tempat ibadah |
+| GET | `?action=coverage&id=N` | Siapa saja | Rumah tangga dalam radius tempat ibadah |
+| POST | `?action=create` | Siapa saja | Membuat tempat ibadah baru |
+| POST | `?action=update&id=N` | Siapa saja | Memperbarui data tempat ibadah |
+| POST | `?action=patch&id=N` | Siapa saja | Memperbarui radius/koordinat saja |
+| POST | `?action=delete&id=N` | Admin | Menghapus lunak tempat ibadah |
 
 ### `api/public/report.php`
 
-| Method | Query | Auth | Description |
+| Metode | Query | Auth | Deskripsi |
 |---|---|---|---|
-| POST | — | Public | Submit public report |
-| GET | `?action=list` | Admin | List all reports |
-| POST | `?action=approve&id=N` | Admin | Approve → create household |
-| POST | `?action=reject&id=N` | Admin | Reject with notes |
-| POST | `?action=delete&id=N` | Admin | Delete report |
+| POST | — | Publik | Mengirim laporan publik |
+| GET | `?action=list` | Admin/Petugas | Daftar semua laporan |
+| POST | `?action=approve&id=N` | Admin/Petugas | Menyetujui → membuat rumah tangga |
+| POST | `?action=reject&id=N` | Admin/Petugas | Menolak dengan catatan |
+| POST | `?action=delete&id=N` | Admin | Menghapus laporan + foto terkait |
 
 ### `api/stats/index.php`
 
-| Action | Description |
+| Aksi | Deskripsi |
 |---|---|
-| `overview` | KPI cards: counts of centers, households, population, aid recipients |
-| `poverty_chart` | Household count per poverty category |
-| `aid_chart` | Aid vs. no-aid distribution |
-| `trend` | Monthly household registration trend (12 months) |
-| `age_distribution` | Age bracket distribution of household heads |
-| `center_stats` | Per-center household and coverage statistics |
+| `overview` | Kartu KPI: jumlah pusat ibadah, rumah tangga, populasi, penerima bantuan |
+| `poverty_chart` | Jumlah rumah tangga per kategori kemiskinan |
+| `aid_chart` | Distribusi berbanding tidak berhak |
+| `trend` | Tren pendaftaran rumah tangga bulanan (12 bulan) |
+| `age_distribution` | Distribusi kelompok umur kepala rumah tangga |
+| `center_stats` | Statistik rumah tangga dan cakupan per pusat |
 
 ---
 
-## 10. Mobile Responsive Support
+## 10. Dukungan Responsif Mobile
 
-The system is designed to be fully usable on Android and iOS mobile browsers.
+Sistem dirancang untuk dapat digunakan sepenuhnya pada browser mobile Android dan iOS.
 
-### Responsive Breakpoints
+### Titik Henti Responsif
 
-| Breakpoint | Behavior |
+| Titik Henti | Perilaku |
 |---|---|
-| `> 768px` | Sidebar visible, full map view |
-| `≤ 768px` | Sidebar collapses, accessible via toggle button |
-| `≤ 480px` | Modals and popups switch to full-screen overlay |
-| Landscape `≤ 600px height` | Compact header, reduced spacing |
+| `> 768px` | Sidebar terlihat, tampilan peta penuh |
+| `≤ 768px` | Sidebar menyusut, dapat diakses melalui tombol toggle |
+| `≤ 480px` | Modal dan popup beralih ke overlay layar penuh |
+| Lanskap `≤ 600px tinggi` | Header ringkas, jarak berkurang |
 
-### Mobile-Specific Optimizations
+### Optimalisasi Khusus Mobile
 
-- **iOS 100vh fix** — `--vh` CSS custom property recalculated on resize to prevent viewport clipping in Safari
-- **Safe area insets** — `env(safe-area-inset-*)` applied for notched iPhone layouts
-- **Touch targets** — All interactive elements have a minimum height/width of `44px`
-- **`-webkit-tap-highlight-color: transparent`** — Removes tap flash on buttons
-- **Input font-size: 16px** — Prevents iOS auto-zoom on form focus
-- **Keyboard handling** — Active element blurred before navigation to dismiss virtual keyboard
-- **Popup scroll** — Popups use `overflow-y: auto` with `max-height: 70vh` for long content
+- **Perbaikan 100vh iOS** — Properti kustom CSS `--vh` dihitung ulang saat resize untuk mencegah pemotongan viewport di Safari
+- **Inset area aman** — `env(safe-area-inset-*)` diterapkan untuk tata letak iPhone dengan takik
+- **Target sentuh** — Semua elemen interaktif memiliki tinggi/lebar minimum `44px`
+- **`-webkit-tap-highlight-color: transparent`** — Menghilangkan kilatan sentuh pada tombol
+- **Ukuran font input: 16px** — Mencegah zoom otomatis iOS saat fokus pada formulir
+- **Penanganan keyboard** — Elemen aktif dikaburkan sebelum navigasi untuk menutup keyboard virtual
+- **Gulir popup** — Popup menggunakan `overflow-y: auto` dengan `max-height: 70vh` untuk konten panjang
+- **Thumbnail foto** — Ubah ukuran menjadi 60px pada mobile (72px pada desktop) untuk target sentuh yang optimal
 
 ---
 
-## 11. Security Notes
+## 11. Catatan Keamanan
 
-This system is designed for public academic deployment on shared hosting. The following lightweight security measures are implemented:
+Sistem ini dirancang untuk deployment akademik publik pada hosting bersama. Langkah-langkah keamanan ringan berikut diterapkan:
 
-| Area | Measure |
+| Area | Langkah |
 |---|---|
-| **SQL Injection** | All queries use PDO prepared statements with `ATTR_EMULATE_PREPARES = false` — true parameterized queries enforced at driver level |
-| **XSS** | All user-generated content rendered into HTML is wrapped in `escapeHtml()` (`htmlspecialchars` with `ENT_QUOTES`); backend inputs sanitized via `Validator::sanitizeString()` |
-| **Session Fixation** | `session_regenerate_id(true)` called on every successful login |
-| **Session Security** | Sessions are `HttpOnly`, `SameSite=Lax`; named `webgis_sess` to avoid conflicts |
-| **Role Enforcement** | `requireAuth()` and `requireAdmin()` helpers guard every API endpoint server-side |
-| **Input Validation** | `Validator.php` enforces type, length, enum, coordinate, and email rules before any DB operation |
-| **Rate Limiting** | Public report endpoint rejects submissions exceeding 5 per IP per 24 hours |
-| **Error Leakage** | `APP_DEBUG = false` in production suppresses PHP errors; exception handler returns generic 500 JSON |
-| **CORS** | `Access-Control-Allow-Origin: *` only enabled in `development` environment |
-| **Clickjacking** | `X-Frame-Options: DENY` header sent on all API responses |
+| **SQL Injection** | Semua query menggunakan prepared statements PDO dengan `ATTR_EMULATE_PREPARES = false` — kueri terparameterisasi sejati ditegakkan di tingkat driver |
+| **XSS** | Semua konten buatan pengguna yang dirender ke HTML dibungkus dengan `escapeHtml()` (`htmlspecialchars` dengan `ENT_QUOTES`); input backend dibersihkan melalui `Validator::sanitizeString()` |
+| **Fiksasi Sesi** | `session_regenerate_id(true)` dipanggil pada setiap login yang berhasil |
+| **Keamanan Sesi** | Sesi bersifat `HttpOnly`, `SameSite=Lax`; diberi nama `webgis_sess` untuk menghindari konflik |
+| **Penegakan Peran** | Pembantu `requireAuth()` dan `requireAdmin()` menjaga setiap endpoint API sisi server |
+| **Validasi Input** | `Validator.php` menegakkan aturan tipe, panjang, enum, koordinat, dan email sebelum operasi DB apa pun |
+| **Pembatasan Laju** | Endpoint laporan publik menolak pengiriman melebihi 5 per IP per 24 jam |
+| **Kebocoran Kesalahan** | `APP_DEBUG = false` dalam produksi menekan kesalahan PHP; penangan pengecualian mengembalikan JSON 500 generik |
+| **CORS** | `Access-Control-Allow-Origin: *` hanya diaktifkan di lingkungan `development` |
+| **Clickjacking** | Header `X-Frame-Options: DENY` dikirim pada semua respons API |
+| **Keamanan Unggah File** | `.htaccess` memblokir eksekusi PHP di `uploads/`; tipe MIME diverifikasi melalui `finfo`; nama file diacak dengan `random_bytes(12)`; `getimagesize()` mengonfirmasi struktur gambar yang valid; `basename()` mencegah traversal jalur |
 
 ---
 
-## 12. Troubleshooting
+## 12. Pemecahan Masalah
 
-### API returns HTML instead of JSON
-- Set `APP_DEBUG = true` in `config/config.php` temporarily to expose the PHP error
-- Check Apache error log: `C:\xampp\logs\error.log` (XAMPP)
-- Confirm `ob_start()` is present in `bootstrap.php` to suppress accidental output
+### API mengembalikan HTML bukan JSON
+- Atur `APP_DEBUG = true` di `config/config.php` sementara untuk menampilkan kesalahan PHP
+- Periksa log kesalahan Apache: `C:\xampp\logs\error.log` (XAMPP)
+- Pastikan `ob_start()` ada di `bootstrap.php` untuk menekan output yang tidak disengaja
 
-### Map tiles do not load
-- Requires internet access to OpenStreetMap tile servers
-- Check browser console (F12) for mixed-content or CORS errors
-- On HTTPS hosting, tile URLs must also use HTTPS
+### Ubin peta tidak dimuat
+- Membutuhkan akses internet ke server ubin OpenStreetMap
+- Periksa konsol browser (F12) untuk kesalahan konten campuran atau CORS
+- Pada hosting HTTPS, URL ubin juga harus menggunakan HTTPS
 
-### Chart.js dashboard is empty
-- Charts are loaded from CDN — requires internet access
-- Verify no JavaScript console errors in the dashboard tab
-- Confirm the Stats API (`api/stats/index.php`) returns valid JSON
+### Dasbor Chart.js kosong
+- Grafik dimuat dari CDN — membutuhkan akses internet
+- Pastikan tidak ada kesalahan konsol JavaScript di tab dasbor
+- Pastikan API Stats (`api/stats/index.php`) mengembalikan JSON yang valid
 
-### Rate limiting too strict during testing
-In `api/public/report.php`, change the limit constant:
+### Unggah foto gagal secara diam-diam
+- Pastikan ekstensi PHP `fileinfo` dan `gd` diaktifkan
+- Pastikan `uploads/houses/` dan `uploads/reports/` ada dan dapat ditulis (`chmod 755`)
+- Atur `APP_DEBUG = true` sementara untuk menampilkan kesalahan unggah PHP
+- Pastikan `upload_max_filesize` dan `post_max_size` di `php.ini` minimal `6M`
+
+### Pembatasan laju terlalu ketat selama pengujian
+Di `api/public/report.php`, ubah konstanta batas:
 ```php
-if ($recentCount >= 5) {    // increase for local testing
+if ($recentCount >= 5) {    // tingkatkan untuk pengujian lokal
 ```
 
-### Login redirect loop
-- Confirm the database is correctly imported and the `users` table contains the default admin row
-- Verify session configuration: PHP must be able to write session files (`session.save_path`)
-- On shared hosting, confirm the session path is writable
+### Loop pengalihan login
+- Pastikan database diimpor dengan benar dan tabel `users` berisi baris admin default
+- Pastikan konfigurasi sesi: PHP harus dapat menulis file sesi (`session.save_path`)
+- Pada hosting bersama, pastikan jalur sesi dapat ditulis
 
 ---
 
-## 13. Future Improvements
+## 13. Peningkatan Masa Depan
 
-| Feature | Description |
+| Fitur | Deskripsi |
 |---|---|
-| **Export to Excel/PDF** | Add `api/export/` endpoints to generate downloadable reports of household data |
-| **Print-ready map** | Implement Leaflet.print or browser print CSS for paper-ready map output |
-| **Batch import** | CSV upload for bulk household data entry from field surveys |
-| **Notification system** | Email or WhatsApp alert to admin when a new public report is submitted |
-| **HTTPS enforcement** | Add `.htaccess` HTTPS redirect and switch session `secure` flag to `true` |
-| **User audit trail** | Expand audit log UI to show full change history per household record |
-| **Multi-village support** | Add a `villages` table to support multiple administrative areas from one system |
-| **Map clustering** | Implement Leaflet.markercluster for performance on dense datasets (500+ markers) |
-| **Offline capability** | Service Worker caching for field use in areas with poor connectivity |
-| **API rate limiting** | Extend rate limiting to authenticated write endpoints to prevent data flooding |
+| **Ekspor ke Excel/PDF** | Tambahkan endpoint `api/export/` untuk menghasilkan laporan data rumah tangga yang dapat diunduh |
+| **Peta siap cetak** | Implementasikan Leaflet.print atau CSS cetak browser untuk output peta siap kertas |
+| **Impor massal** | Unggah CSV untuk entri data rumah tangga massal dari survei lapangan |
+| **Sistem notifikasi** | Peringatan email atau WhatsApp ke admin ketika laporan publik baru dikirim |
+| **Penegakan HTTPS** | Tambahkan pengalihan HTTPS `.htaccess` dan ubah flag sesi `secure` menjadi `true` |
+| **Jejak audit pengguna** | Perluas UI log audit untuk menunjukkan riwayat perubahan lengkap per catatan rumah tangga |
+| **Dukungan multi-desa** | Tambahkan tabel `villages` untuk mendukung beberapa area administratif dari satu sistem |
+| **Pengelompokan peta** | Implementasikan Leaflet.markercluster untuk kinerja pada kumpulan data padat (500+ marker) |
+| **Kemampuan offline** | Caching Service Worker untuk penggunaan lapangan di area dengan konektivitas buruk |
+| **Pembatasan laju API** | Perluas pembatasan laju ke endpoint tulis terautentikasi untuk mencegah banjir data |
+| **Kompresi foto** | Perubahan ukuran gambar sisi server sebelum penyimpanan untuk mengurangi penggunaan disk |
 
 ---
 
-## License
+## Lisensi
 
-This project is open-source under the [MIT License](LICENSE).  
-Built as an academic GIS project — suitable for university final-year projects, research, and public-sector demos.
+Proyek ini bersumber terbuka di bawah [Lisensi MIT](LICENSE).  
+Dibangun sebagai proyek GIS akademik — cocok untuk proyek akhir tahun universitas, penelitian, dan demo sektor publik.
